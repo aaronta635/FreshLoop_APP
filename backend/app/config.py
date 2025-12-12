@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     # CORS settings
     cors_origins: list = [
         "http://localhost:3000",
+        "http://localhost:8081",
+        "http://localhost:19000",
+        "http://localhost:19001",
+        "http://localhost:19002",
+        "exp://localhost:8081",
+        "exp://192.168.*.*:8081",
         "https://zerosaver-idfi-d6u5phsq4-aaronta635s-projects.vercel.app",
         "https://zerosaver-idfi.vercel.app"
     ]

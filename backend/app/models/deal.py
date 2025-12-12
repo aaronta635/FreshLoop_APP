@@ -6,7 +6,7 @@ from app.models.base import Base
 class Deal(Base):
     __tablename__ = 'deals'
     id = Column(String, primary_key=True)
-    # vendor_id = Column(Integer, ForeignKey("vendors.id"))  # Temporarily commented out
+    vendor_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # Shop owner user id
     title = Column(String)
     restaurant_name = Column(String)
     description = Column(String)
@@ -20,11 +20,5 @@ class Deal(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
-    # vendor = relationship("Vendor", back_populates="deals")  # Temporarily commented out
+    vendor = relationship("User", backref="deals")
     carts = relationship("Cart", back_populates="product")
-
-
-
-
-
-

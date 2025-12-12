@@ -8,22 +8,44 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '../../constants/Colors';
+import { useAuth } from '../../context/AuthContext';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
 
-  const handleLogin = () => {
-    // Navigate to location access and then tabs
-    router.replace('/(tabs)');
+  const handleLogin = async () => {
+    if (!formData.email || !formData.password) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Try logging in as customer first
+      await login(formData.email, formData.password);
+      router.replace('/(tabs)');
+    } catch (error: any) {
+      // If customer login fails, show error
+      Alert.alert(
+        'Login Failed',
+        error.message || 'Invalid email or password. Please try again.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSwitchToSignup = () => {
@@ -37,7 +59,10 @@ export default function LoginScreen() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity 
+          onPress={() => router.canGoBack() ? router.back() : router.replace('/(onboarding)/intro')} 
+          style={styles.backButton}
+        >
           <Ionicons name="arrow-back" size={24} color={Colors.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Welcome Back</Text>
@@ -68,6 +93,7 @@ export default function LoginScreen() {
               onChangeText={(email) => setFormData({ ...formData, email })}
               keyboardType="email-address"
               autoCapitalize="none"
+              editable={!isLoading}
             />
           </View>
         </View>
@@ -90,6 +116,7 @@ export default function LoginScreen() {
               onChangeText={(password) => setFormData({ ...formData, password })}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
+              editable={!isLoading}
             />
             <TouchableOpacity
               onPress={() => setShowPassword(!showPassword)}
@@ -110,8 +137,16 @@ export default function LoginScreen() {
         </TouchableOpacity>
 
         {/* Login Button */}
-        <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-          <Text style={styles.loginButtonText}>Log In</Text>
+        <TouchableOpacity
+          style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
+          onPress={handleLogin}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator color={Colors.white} />
+          ) : (
+            <Text style={styles.loginButtonText}>Log In</Text>
+          )}
         </TouchableOpacity>
 
         {/* Sign Up Link */}
@@ -221,6 +256,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.md,
   },
+  loginButtonDisabled: {
+    opacity: 0.7,
+  },
   loginButtonText: {
     fontSize: FontSize.lg,
     fontWeight: FontWeight.bold,
@@ -286,4 +324,3 @@ const styles = StyleSheet.create({
     backgroundColor: '#1877F2',
   },
 });
-

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,37 +6,141 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  ActivityIndicator,
+  RefreshControl,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '../../constants/Colors';
+import { ordersApi, Order, API_BASE_URL } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { useCart } from '../../context/CartContext';
 
-type TabType = 'active' | 'completed';
+type TabType = 'cart' | 'orders';
 
 export default function OrdersScreen() {
-  const [activeTab, setActiveTab] = useState<TabType>('active');
+  const router = useRouter();
+  const { isAuthenticated } = useAuth();
+  const { cart, checkout, refreshCart, removeFromCart, isLoading: isCartLoading } = useCart();
+  
+  const [activeTab, setActiveTab] = useState<TabType>('cart');
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const mockOrders = [
-    {
-      id: '1',
-      restaurant: 'Fresh Bites Cafe',
-      item: 'Classic Grilled Ribeye',
-      price: 10.9,
-      pickupTime: '2:30 PM - 3:00 PM',
-      status: 'Ready for Pickup',
-      image: 'https://images.unsplash.com/photo-1717158776685-d4b7c346e1a7?w=400',
-    },
-  ];
+  useEffect(() => {
+    if (isAuthenticated && activeTab === 'orders') {
+      fetchOrders();
+    }
+  }, [isAuthenticated, activeTab]);
 
-  const completedOrders = [
-    {
-      id: '2',
-      restaurant: 'Green Garden',
-      item: 'Strawberry Bliss Pancake',
-      price: 2.8,
-      completedDate: 'Nov 25, 2024',
-      image: 'https://images.unsplash.com/photo-1683771419434-e59b7f6c39d6?w=400',
-    },
-  ];
+  useEffect(() => {
+    if (isAuthenticated) {
+      refreshCart();
+    }
+  }, [isAuthenticated]);
+
+  const fetchOrders = async () => {
+    if (!isAuthenticated) return;
+    
+    try {
+      setIsLoading(true);
+      const fetchedOrders = await ordersApi.getOrders();
+      setOrders(fetchedOrders);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    if (activeTab === 'orders') {
+      fetchOrders();
+    } else {
+      refreshCart().then(() => setIsRefreshing(false));
+    }
+  };
+
+  const handleCheckout = async () => {
+    if (!cart || !cart.cart_items || cart.cart_items.length === 0) {
+      Alert.alert('Empty Cart', 'Add some items to your cart first!');
+      return;
+    }
+
+    Alert.alert(
+      'Confirm Checkout',
+      `Total: $${(cart.total_amount / 100).toFixed(2)}\n\nProceed with checkout?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Checkout',
+          onPress: async () => {
+            try {
+              const result = await checkout();
+              Alert.alert(
+                'Order Placed!',
+                result.message || 'Your order has been confirmed.',
+                [
+                  {
+                    text: 'View Orders',
+                    onPress: () => {
+                      setActiveTab('orders');
+                      fetchOrders();
+                    },
+                  },
+                ]
+              );
+            } catch (error: any) {
+              Alert.alert('Checkout Failed', error.message || 'Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleRemoveItem = async (productId: number) => {
+    try {
+      await removeFromCart(productId);
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to remove item');
+    }
+  };
+
+  const getImageUrl = (imageUrl: string | null): string => {
+    if (!imageUrl) {
+      return 'https://images.unsplash.com/photo-1717158776685-d4b7c346e1a7?w=400';
+    }
+    if (imageUrl.startsWith('http')) {
+      return imageUrl;
+    }
+    return `${API_BASE_URL.replace('/api', '')}${imageUrl}`;
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>My Orders</Text>
+        </View>
+        <View style={styles.emptyState}>
+          <Ionicons name="log-in-outline" size={64} color={Colors.textSecondary} />
+          <Text style={styles.emptyTitle}>Login Required</Text>
+          <Text style={styles.emptyText}>Please login to view your cart and orders</Text>
+          <TouchableOpacity
+            style={styles.loginButton}
+            onPress={() => router.push('/(onboarding)/login')}
+          >
+            <Text style={styles.loginButtonText}>Login</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -48,29 +152,19 @@ export default function OrdersScreen() {
       {/* Tabs */}
       <View style={styles.tabContainer}>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'active' && styles.activeTab]}
-          onPress={() => setActiveTab('active')}
+          style={[styles.tab, activeTab === 'cart' && styles.activeTab]}
+          onPress={() => setActiveTab('cart')}
         >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'active' && styles.activeTabText,
-            ]}
-          >
-            Active
+          <Text style={[styles.tabText, activeTab === 'cart' && styles.activeTabText]}>
+            Cart {cart && cart.total_items_quantity > 0 ? `(${cart.total_items_quantity})` : ''}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'completed' && styles.activeTab]}
-          onPress={() => setActiveTab('completed')}
+          style={[styles.tab, activeTab === 'orders' && styles.activeTab]}
+          onPress={() => setActiveTab('orders')}
         >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'completed' && styles.activeTabText,
-            ]}
-          >
-            Completed
+          <Text style={[styles.tabText, activeTab === 'orders' && styles.activeTabText]}>
+            Orders
           </Text>
         </TouchableOpacity>
       </View>
@@ -80,83 +174,125 @@ export default function OrdersScreen() {
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            colors={[Colors.primary]}
+            tintColor={Colors.primary}
+          />
+        }
       >
-        {activeTab === 'active' ? (
+        {activeTab === 'cart' ? (
           <>
-            {mockOrders.length > 0 ? (
-              mockOrders.map((order) => (
-                <View key={order.id} style={styles.orderCard}>
-                  <View style={styles.orderHeader}>
-                    <Ionicons name="storefront" size={20} color={Colors.primary} />
-                    <Text style={styles.restaurantName}>{order.restaurant}</Text>
-                  </View>
-
-                  <View style={styles.orderContent}>
-                    <Image source={{ uri: order.image }} style={styles.orderImage} />
-                    <View style={styles.orderDetails}>
-                      <Text style={styles.orderItem}>{order.item}</Text>
-                      <Text style={styles.orderPrice}>${order.price}</Text>
-                      <View style={styles.pickupInfo}>
-                        <Ionicons name="time-outline" size={16} color={Colors.textSecondary} />
-                        <Text style={styles.pickupTime}>{order.pickupTime}</Text>
-                      </View>
+            {isCartLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+              </View>
+            ) : cart && cart.cart_items && cart.cart_items.length > 0 ? (
+              <>
+                {cart.cart_items.map((item) => (
+                  <View key={item.product_id} style={styles.cartCard}>
+                    <Image
+                      source={{ uri: item.product?.product_images?.[0]?.product_image || 'https://via.placeholder.com/70' }}
+                      style={styles.cartImage}
+                    />
+                    <View style={styles.cartDetails}>
+                      <Text style={styles.cartTitle} numberOfLines={1}>{item.product?.product_name || 'Product'}</Text>
+                      <Text style={styles.cartQuantity}>Qty: {item.quantity}</Text>
+                      <Text style={styles.cartPrice}>${((item.product?.price || 0) * item.quantity / 100).toFixed(2)}</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.removeButton}
+                      onPress={() => handleRemoveItem(item.product_id)}
+                    >
+                      <Ionicons name="trash-outline" size={20} color={Colors.error} />
+                    </TouchableOpacity>
                   </View>
+                ))}
 
-                  <View style={styles.statusBadge}>
-                    <View style={styles.statusDot} />
-                    <Text style={styles.statusText}>{order.status}</Text>
+                {/* Cart Summary */}
+                <View style={styles.summaryCard}>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Items</Text>
+                    <Text style={styles.summaryValue}>{cart.total_items_quantity}</Text>
                   </View>
-
-                  <TouchableOpacity style={styles.viewButton}>
-                    <Text style={styles.viewButtonText}>View Details</Text>
-                  </TouchableOpacity>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Total</Text>
+                    <Text style={styles.summaryTotal}>${(cart.total_amount / 100).toFixed(2)}</Text>
+                  </View>
                 </View>
-              ))
+
+                {/* Checkout Button */}
+                <TouchableOpacity style={styles.checkoutButton} onPress={handleCheckout}>
+                  <Text style={styles.checkoutButtonText}>Checkout</Text>
+                  <Ionicons name="arrow-forward" size={20} color={Colors.white} />
+                </TouchableOpacity>
+              </>
             ) : (
               <View style={styles.emptyState}>
                 <Ionicons name="cart-outline" size={64} color={Colors.textSecondary} />
-                <Text style={styles.emptyTitle}>No Active Orders</Text>
-                <Text style={styles.emptyText}>
-                  Start browsing to find great deals!
-                </Text>
+                <Text style={styles.emptyTitle}>Your Cart is Empty</Text>
+                <Text style={styles.emptyText}>Browse deals and add items to your cart</Text>
+                <TouchableOpacity
+                  style={styles.browseButton}
+                  onPress={() => router.push('/(tabs)/')}
+                >
+                  <Text style={styles.browseButtonText}>Browse Deals</Text>
+                </TouchableOpacity>
               </View>
             )}
           </>
         ) : (
           <>
-            {completedOrders.length > 0 ? (
-              completedOrders.map((order) => (
+            {isLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+              </View>
+            ) : orders.length > 0 ? (
+              orders.map((order) => (
                 <View key={order.id} style={styles.orderCard}>
                   <View style={styles.orderHeader}>
-                    <Ionicons name="storefront" size={20} color={Colors.primary} />
-                    <Text style={styles.restaurantName}>{order.restaurant}</Text>
-                  </View>
-
-                  <View style={styles.orderContent}>
-                    <Image source={{ uri: order.image }} style={styles.orderImage} />
-                    <View style={styles.orderDetails}>
-                      <Text style={styles.orderItem}>{order.item}</Text>
-                      <Text style={styles.orderPrice}>${order.price}</Text>
-                      <Text style={styles.completedDate}>
-                        Completed on {order.completedDate}
+                    <View>
+                      <Text style={styles.orderNumber}>Order #{order.id}</Text>
+                      <Text style={styles.orderDate}>
+                        {order.created_at ? new Date(order.created_at).toLocaleDateString() : 'N/A'}
                       </Text>
+                    </View>
+                    <View style={[
+                      styles.statusBadge,
+                      order.status === 'confirmed' && styles.statusConfirmed,
+                      order.status === 'pending' && styles.statusPending,
+                    ]}>
+                      <Text style={styles.statusText}>{order.status}</Text>
                     </View>
                   </View>
 
-                  <TouchableOpacity style={styles.reorderButton}>
-                    <Ionicons name="refresh" size={20} color={Colors.white} />
-                    <Text style={styles.reorderButtonText}>Order Again</Text>
-                  </TouchableOpacity>
+                  {order.items.map((item, index) => (
+                    <View key={index} style={styles.orderItem}>
+                      <Image
+                        source={{ uri: getImageUrl(item.image_url) }}
+                        style={styles.orderItemImage}
+                      />
+                      <View style={styles.orderItemDetails}>
+                        <Text style={styles.orderItemTitle} numberOfLines={1}>{item.title}</Text>
+                        <Text style={styles.orderItemRestaurant}>{item.restaurant_name}</Text>
+                        <Text style={styles.orderItemQuantity}>Qty: {item.quantity}</Text>
+                      </View>
+                      <Text style={styles.orderItemPrice}>${item.total.toFixed(2)}</Text>
+                    </View>
+                  ))}
+
+                  <View style={styles.orderFooter}>
+                    <Text style={styles.orderTotal}>Total: ${order.total_amount.toFixed(2)}</Text>
+                  </View>
                 </View>
               ))
             ) : (
               <View style={styles.emptyState}>
                 <Ionicons name="receipt-outline" size={64} color={Colors.textSecondary} />
-                <Text style={styles.emptyTitle}>No Completed Orders</Text>
-                <Text style={styles.emptyText}>
-                  Your order history will appear here
-                </Text>
+                <Text style={styles.emptyTitle}>No Orders Yet</Text>
+                <Text style={styles.emptyText}>Your order history will appear here</Text>
               </View>
             )}
           </>
@@ -215,6 +351,90 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     paddingBottom: 100,
   },
+  loadingContainer: {
+    paddingVertical: 64,
+    alignItems: 'center',
+  },
+  cartCard: {
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    shadowColor: Colors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  cartImage: {
+    width: 70,
+    height: 70,
+    borderRadius: BorderRadius.sm,
+  },
+  cartDetails: {
+    flex: 1,
+  },
+  cartTitle: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semiBold,
+    color: Colors.primary,
+    marginBottom: 4,
+  },
+  cartQuantity: {
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    marginBottom: 4,
+  },
+  cartPrice: {
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
+    color: Colors.accent,
+  },
+  removeButton: {
+    padding: Spacing.sm,
+  },
+  summaryCard: {
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.lg,
+    marginBottom: Spacing.lg,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.sm,
+  },
+  summaryLabel: {
+    fontSize: FontSize.md,
+    color: Colors.textSecondary,
+  },
+  summaryValue: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semiBold,
+    color: Colors.primary,
+  },
+  summaryTotal: {
+    fontSize: FontSize.xl,
+    fontWeight: FontWeight.bold,
+    color: Colors.accent,
+  },
+  checkoutButton: {
+    backgroundColor: Colors.accent,
+    paddingVertical: 16,
+    borderRadius: BorderRadius.full,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+  },
+  checkoutButtonText: {
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
+    color: Colors.white,
+  },
   orderCard: {
     backgroundColor: Colors.white,
     borderRadius: BorderRadius.md,
@@ -228,100 +448,84 @@ const styles = StyleSheet.create({
   },
   orderHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: Spacing.md,
+    paddingBottom: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
   },
-  restaurantName: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.semiBold,
-    color: Colors.primary,
-  },
-  orderContent: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    marginBottom: Spacing.md,
-  },
-  orderImage: {
-    width: 80,
-    height: 80,
-    borderRadius: BorderRadius.sm,
-  },
-  orderDetails: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  orderItem: {
-    fontSize: FontSize.md,
-    fontWeight: FontWeight.semiBold,
-    color: Colors.primary,
-    marginBottom: 4,
-  },
-  orderPrice: {
+  orderNumber: {
     fontSize: FontSize.lg,
     fontWeight: FontWeight.bold,
-    color: Colors.accent,
-    marginBottom: 4,
+    color: Colors.primary,
   },
-  pickupInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  pickupTime: {
-    fontSize: FontSize.xs,
+  orderDate: {
+    fontSize: FontSize.sm,
     color: Colors.textSecondary,
-  },
-  completedDate: {
-    fontSize: FontSize.xs,
-    color: Colors.textSecondary,
+    marginTop: 2,
   },
   statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: Colors.lightGray,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
     borderRadius: BorderRadius.full,
-    alignSelf: 'flex-start',
-    marginBottom: Spacing.md,
+    backgroundColor: Colors.lightGray,
   },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.secondary,
+  statusConfirmed: {
+    backgroundColor: 'rgba(34, 197, 94, 0.2)',
+  },
+  statusPending: {
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
   },
   statusText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.semiBold,
+    color: Colors.primary,
+    textTransform: 'capitalize',
+  },
+  orderItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  orderItemImage: {
+    width: 50,
+    height: 50,
+    borderRadius: BorderRadius.sm,
+  },
+  orderItemDetails: {
+    flex: 1,
+  },
+  orderItemTitle: {
     fontSize: FontSize.sm,
     fontWeight: FontWeight.semiBold,
     color: Colors.primary,
   },
-  viewButton: {
-    backgroundColor: Colors.primary,
-    paddingVertical: 12,
-    borderRadius: BorderRadius.sm,
-    alignItems: 'center',
+  orderItemRestaurant: {
+    fontSize: FontSize.xs,
+    color: Colors.textSecondary,
   },
-  viewButtonText: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.semiBold,
-    color: Colors.white,
+  orderItemQuantity: {
+    fontSize: FontSize.xs,
+    color: Colors.textSecondary,
   },
-  reorderButton: {
-    backgroundColor: Colors.accent,
-    paddingVertical: 12,
-    borderRadius: BorderRadius.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
+  orderItemPrice: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
+    color: Colors.accent,
   },
-  reorderButtonText: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.semiBold,
-    color: Colors.white,
+  orderFooter: {
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    paddingTop: Spacing.md,
+    marginTop: Spacing.sm,
+    alignItems: 'flex-end',
+  },
+  orderTotal: {
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.bold,
+    color: Colors.primary,
   },
   emptyState: {
     alignItems: 'center',
@@ -339,6 +543,28 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     color: Colors.textSecondary,
     textAlign: 'center',
+    marginBottom: Spacing.lg,
+  },
+  browseButton: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: BorderRadius.full,
+  },
+  browseButtonText: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
+    color: Colors.white,
+  },
+  loginButton: {
+    backgroundColor: Colors.accent,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: BorderRadius.full,
+  },
+  loginButtonText: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
+    color: Colors.white,
   },
 });
-

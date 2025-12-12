@@ -12,6 +12,11 @@ export default function CustomerLayout() {
       <Stack.Screen name="edit-profile" />
       <Stack.Screen name="payment-methods" />
       <Stack.Screen name="help-centre" />
+      <Stack.Screen name="checkout" />
+      <Stack.Screen 
+        name="order-confirmation" 
+        options={{ gestureEnabled: false }} 
+      />
     </Stack>
   );
 }

@@ -5,13 +5,36 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '../../constants/Colors';
+import { useAuth } from '../../context/AuthContext';
+import { useCart } from '../../context/CartContext';
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { user, isLoading, isAuthenticated, logout } = useAuth();
+  const { cart } = useCart();
+
+  const handleLogout = async () => {
+    await logout();
+    router.replace('/(onboarding)/login');
+  };
+
+  const handleLogin = () => {
+    router.push('/(onboarding)/login');
+  };
+
+  if (isLoading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -26,23 +49,39 @@ export default function ProfileScreen() {
               <Ionicons name="person" size={32} color={Colors.primary} />
             </View>
             <View style={styles.userDetails}>
-              <Text style={styles.userName}>Alex Johnson</Text>
-              <Text style={styles.userEmail}>alex.johnson@email.com</Text>
+              {isAuthenticated && user ? (
+                <>
+                  <Text style={styles.userName}>{user.first_name} {user.last_name}</Text>
+                  <Text style={styles.userEmail}>{user.email}</Text>
+                  <View style={styles.roleBadge}>
+                    <Text style={styles.roleText}>
+                      {user.default_role === 'vendor' ? '🏪 Business' : '👤 Customer'}
+                    </Text>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.userName}>Guest User</Text>
+                  <TouchableOpacity onPress={handleLogin}>
+                    <Text style={styles.loginLink}>Tap to login</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           </View>
 
           {/* Stats */}
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>12</Text>
-              <Text style={styles.statLabel}>Loops</Text>
+              <Text style={styles.statValue}>{cart?.total_items_quantity || 0}</Text>
+              <Text style={styles.statLabel}>In Cart</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>$168</Text>
+              <Text style={styles.statValue}>$0</Text>
               <Text style={styles.statLabel}>Saved</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>30kg</Text>
+              <Text style={styles.statValue}>0kg</Text>
               <Text style={styles.statLabel}>CO₂</Text>
             </View>
           </View>
@@ -107,7 +146,20 @@ export default function ProfileScreen() {
           <View style={styles.menuCard}>
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => router.push('/(business)/dashboard')}
+              onPress={() => {
+                if (isAuthenticated) {
+                  router.push('/(business)/dashboard');
+                } else {
+                  Alert.alert(
+                    'Login Required',
+                    'Please login to access the partner dashboard.',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Login', onPress: handleLogin },
+                    ]
+                  );
+                }
+              }}
             >
               <View style={styles.menuItemLeft}>
                 <View style={[styles.menuIcon, styles.businessIcon]}>
@@ -150,22 +202,45 @@ export default function ProfileScreen() {
               <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItem}>
-              <View style={styles.menuItemLeft}>
-                <View style={[styles.menuIcon, styles.logoutIcon]}>
-                  <Ionicons name="log-out-outline" size={20} color={Colors.error} />
+            {isAuthenticated ? (
+              <TouchableOpacity 
+                onPress={handleLogout}
+                style={styles.menuItem}
+              >
+                <View style={styles.menuItemLeft}>
+                  <View style={[styles.menuIcon, styles.logoutIcon]}>
+                    <Ionicons name="log-out-outline" size={20} color={Colors.error} />
+                  </View>
+                  <Text style={[styles.menuItemText, styles.logoutText]}>Log Out</Text>
                 </View>
-                <Text style={[styles.menuItemText, styles.logoutText]}>Log Out</Text>
-              </View>
-            </TouchableOpacity>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity 
+                onPress={handleLogin}
+                style={styles.menuItem}
+              >
+                <View style={styles.menuItemLeft}>
+                  <View style={[styles.menuIcon, { backgroundColor: 'rgba(34, 197, 94, 0.1)' }]}>
+                    <Ionicons name="log-in-outline" size={20} color="#22C55E" />
+                  </View>
+                  <Text style={[styles.menuItemText, { color: '#22C55E' }]}>Log In</Text>
+                </View>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
         {/* Impact Card */}
         <View style={styles.impactCard}>
           <Ionicons name="trophy" size={48} color={Colors.secondary} />
-          <Text style={styles.impactTitle}>Eco Warrior</Text>
-          <Text style={styles.impactText}>You've saved 12 meals from waste!</Text>
+          <Text style={styles.impactTitle}>
+            {isAuthenticated ? 'Start Saving!' : 'Join Fresh Loop'}
+          </Text>
+          <Text style={styles.impactText}>
+            {isAuthenticated 
+              ? 'Browse deals and start saving food from waste!'
+              : 'Login to track your impact and save food!'}
+          </Text>
         </View>
 
         {/* App Info */}
@@ -182,6 +257,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     backgroundColor: Colors.primary,
@@ -226,6 +305,18 @@ const styles = StyleSheet.create({
   },
   userEmail: {
     fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+  },
+  loginLink: {
+    fontSize: FontSize.sm,
+    color: Colors.accent,
+    fontWeight: FontWeight.semiBold,
+  },
+  roleBadge: {
+    marginTop: 4,
+  },
+  roleText: {
+    fontSize: FontSize.xs,
     color: Colors.textSecondary,
   },
   statsContainer: {
@@ -362,4 +453,3 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
 });
-

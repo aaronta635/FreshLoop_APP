@@ -14,6 +14,7 @@ class DealCreate(BaseModel):
 
 class DealResponse(BaseModel):
     id: str
+    vendor_id: Optional[int] = None
     title: str
     restaurant_name: str
     description: str

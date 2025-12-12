@@ -86,6 +86,10 @@ export default function IntroCarouselScreen() {
     router.push('/(onboarding)/signup');
   };
 
+  const handleBack = () => {
+    router.push('/');
+  }
+
   const renderSlide = ({ item }: { item: Slide }) => (
     <View style={[styles.slide, { width }]}>
       <View style={styles.slideContent}>
@@ -105,13 +109,21 @@ export default function IntroCarouselScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Skip Button */}
-      <View style={styles.skipContainer}>
-        <TouchableOpacity onPress={handleSkip}>
-          <Text style={styles.skipText}>Skip</Text>
-        </TouchableOpacity>
-      </View>
 
+
+      <View style={styles.topBar}>
+        <View style={styles.backContainer}>
+          <TouchableOpacity onPress={handleBack}>
+            <Text style={styles.skipText}>Back</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.skipContainer}>
+          <TouchableOpacity onPress={handleSkip}>
+            <Text style={styles.skipText}>Skip</Text>
+          </TouchableOpacity>
+        </View>
+        
+      </View>
       {/* Carousel */}
       <FlatList
         ref={flatListRef}
@@ -164,17 +176,27 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  skipContainer: {
+  topBar: {
+    width: "100%",
+    flexDirection: "row",
+    justifyContent: "space-between",
     paddingHorizontal: Spacing.lg,
     paddingTop: 48,
     paddingBottom: Spacing.md,
-    alignItems: 'flex-end',
+  },
+  backContainer: {
+    alignItems: "flex-end",
+  },
+
+  skipContainer: {
+    alignItems: "flex-start",
   },
   skipText: {
     fontSize: FontSize.md,
     fontWeight: FontWeight.semiBold,
     color: Colors.textSecondary,
   },
+
   slide: {
     flex: 1,
   },
