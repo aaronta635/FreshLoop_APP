@@ -4,8 +4,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // CONFIGURATION - LOCAL BACKEND
 // ============================================
 
-// Point the app to your local FastAPI backend
-export const API_BASE_URL = 'http://localhost:8000/api';
+// Point the app to the deployed FastAPI backend by default; override via env for local
+export const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_BASE_URL || 'https://freshloopapp-production.up.railway.app/api';
 
 // Token storage keys
 const ACCESS_TOKEN_KEY = 'access_token';
@@ -306,10 +307,12 @@ export const dealsApi = {
   },
 
   async createDeal(deal: DealCreate): Promise<Deal> {
-    const response = await fetch(`${API_BASE_URL}/deals`, {
+    const authHeader = await getAuthHeader();
+    const response = await fetch(`${API_BASE_URL}/deals/authenticated`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...authHeader,
       },
       body: JSON.stringify(deal),
     });
@@ -441,15 +444,13 @@ export const ordersApi = {
 
 export const vendorApi = {
   async createProfile(data: {
-    first_name: string;
-    last_name: string;
-    username: string;
-    phone_number: string;
-    country: string;
-    state: string;
+    business_name: string;
+    business_type: string;
+    description?: string;
     address: string;
-    bio: string;
-    ratings?: number;
+    phone?: string;
+    email?: string;
+    website?: string;
   }): Promise<any> {
     // Backend currently uses a mock user; no auth required
     const response = await fetch(`${API_BASE_URL}/vendor/`, {
@@ -457,10 +458,7 @@ export const vendorApi = {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        ...data,
-        ratings: data.ratings ?? 0,
-      }),
+      body: JSON.stringify(data),
     });
     return handleResponse(response);
   },

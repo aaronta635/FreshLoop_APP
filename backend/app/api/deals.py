@@ -69,17 +69,9 @@ def get_deals(db: Session = Depends(get_db)):
     return deals
 
 
-@router.get('/{deal_id}', response_model=DealResponse)
-def get_deal(deal_id: str, db: Session = Depends(get_db)):
-    """Get a specific deal by ID"""
-    deal = db.query(Deal).filter(Deal.id == deal_id).first()
-    if not deal:
-        raise HTTPException(status_code=404, detail="Deal not found")
-    return deal
-
-
 # ============================================
 # SHOP ENDPOINTS - Manage own deals
+# (Must be defined before /{deal_id} route to avoid route conflicts)
 # ============================================
 
 @router.get('/my-deals/', response_model=List[DealResponse])
@@ -97,6 +89,15 @@ def get_my_deals(
     
     deals = db.query(Deal).filter(Deal.vendor_id == current_user.id).all()
     return deals
+
+
+@router.get('/{deal_id}', response_model=DealResponse)
+def get_deal(deal_id: str, db: Session = Depends(get_db)):
+    """Get a specific deal by ID"""
+    deal = db.query(Deal).filter(Deal.id == deal_id).first()
+    if not deal:
+        raise HTTPException(status_code=404, detail="Deal not found")
+    return deal
 
 
 @router.post("/", response_model=DealResponse)
