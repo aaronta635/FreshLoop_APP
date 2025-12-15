@@ -50,8 +50,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const login = async (email: string, password: string): Promise<Tokens> => {
-    const response = await authApi.login({ email, password });
+  const login = async (email: string, password: string, role: UserRole = 'customer'): Promise<Tokens> => {
+    const response = await authApi.login({ email, password, role });
     const currentUser = await authApi.getStoredUser();
     setUser(currentUser);
     return response;
@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const response = await authApi.register({
       email, 
       password,
-      default_role: role
+      role
     });
     setUser(response.auth_user)
     return response;

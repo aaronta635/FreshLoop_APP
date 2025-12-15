@@ -14,7 +14,7 @@ import {
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '../../constants/Colors';
-import { productsApi, Product as APIDeal, API_BASE_URL } from '../../services/api';
+import { dealsApi, Deal as APIDeal, API_BASE_URL } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 const { width } = Dimensions.get('window');
@@ -67,11 +67,32 @@ export default function MerchantDashboardScreen() {
 
   const fetchMyDeals = async () => {
     try {
-      const deals = await productsApi.getMyProducts();
+      const deals = await dealsApi.getMyDeals();
       setMyDeals(deals);
     } catch (error: any) {
       console.error('Error fetching deals:', error);
-      // If not authorized, just show empty
+      
+      // Check if vendor profile needs to be created
+      if (error.message && error.message.includes('Complete your registration by creating your vendor account')) {
+        // Redirect to setup screen to complete vendor profile
+        // Pass a param to indicate this is profile completion, not new registration
+        Alert.alert(
+          'Complete Your Profile',
+          'You need to complete your vendor profile before you can manage deals.',
+          [
+            {
+              text: 'Go to Setup',
+              onPress: () => router.replace({
+                pathname: '/(business)/setup' as any,
+                params: { completeProfile: 'true' }
+              }),
+            },
+          ]
+        );
+        return;
+      }
+      
+      // If other error, just show empty
       setMyDeals([]);
     } finally {
       setIsLoading(false);
@@ -95,7 +116,12 @@ export default function MerchantDashboardScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await productsApi.deleteProduct(parseInt(dealId));
+              // Deals use string ids; keep as string
+              await dealsApi.getDeal(dealId); // quick existence check
+              // Ideally a delete endpoint; use vendor flow when added
+              // For now, no delete support in backend deals for unauth vendor-less
+              Alert.alert('Delete not supported in demo');
+              fetchMyDeals();
               fetchMyDeals();
             } catch (error: any) {
               Alert.alert('Error', error.message || 'Failed to delete deal');

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Infinity } from 'lucide-react';
-import welcomeLogo from 'figma:asset/865fc00e375dd5b031a842c3cf0d12b74729b4e7.png';
+
 
 interface OnboardingProps {
   onContinue: () => void;

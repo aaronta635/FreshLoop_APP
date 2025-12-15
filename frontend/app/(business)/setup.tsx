@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '../../constants/Colors';
 import { useAuth } from '../../context/AuthContext';
@@ -34,8 +34,14 @@ const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
 
 export default function BusinessSetupScreen() {
   const router = useRouter();
-  const { register } = useAuth();
-  const [currentStep, setCurrentStep] = useState(0);
+  const params = useLocalSearchParams();
+  const { register, user, isAuthenticated, logout } = useAuth();
+  // Check if this is profile completion (from dashboard) or new registration
+  const isCompletingProfile = params.completeProfile === 'true';
+  // Start at step 0 for new registrations, step 1 if completing profile as authenticated vendor
+  const [currentStep, setCurrentStep] = useState(
+    isCompletingProfile && isAuthenticated && user?.role === 'shop' ? 1 : 0
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     // Account info
@@ -58,6 +64,24 @@ export default function BusinessSetupScreen() {
       end: '17:00',
     }))
   );
+
+  // Check if user is already logged in (but not as vendor) - they should logout first
+  // Only show this alert if NOT completing profile (i.e., new registration)
+  useEffect(() => {
+    if (!isCompletingProfile && isAuthenticated && user?.role !== 'shop') {
+      Alert.alert(
+        'Already Logged In',
+        'You are currently logged in as a customer. Please logout first to register a business account.',
+        [
+          { text: 'Cancel', onPress: () => router.back() },
+          { text: 'Logout', onPress: async () => {
+            await logout();
+            setCurrentStep(0);
+          }},
+        ]
+      );
+    }
+  }, [isAuthenticated, user, isCompletingProfile]);
 
   const validateStep = (): boolean => {
     if (currentStep === 0) {
@@ -84,8 +108,19 @@ export default function BusinessSetupScreen() {
       }
     }
     if (currentStep === 1) {
-      if (!formData.businessName) {
-        Alert.alert('Error', 'Please enter your business name');
+      if (!formData.businessName || formData.businessName.trim().length < 3) {
+        Alert.alert('Error', 'Please enter a business name (at least 3 characters)');
+        return false;
+      }
+    }
+    if (currentStep === 2) {
+      // Location step - validate address
+      if (!formData.address || formData.address.trim().length === 0) {
+        Alert.alert('Error', 'Please enter your business address');
+        return false;
+      }
+      if (!formData.phone || formData.phone.trim().length === 0) {
+        Alert.alert('Error', 'Please enter your phone number');
         return false;
       }
     }
@@ -98,31 +133,88 @@ export default function BusinessSetupScreen() {
     if (currentStep < STEPS.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      // Final step - register and create vendor profile
+      // Final step - register (if needed) and create vendor profile
       setIsLoading(true);
       try {
-        // Step 1: Register as vendor (register automatically logs in)
-        await register(formData.email, formData.password, 'vendor');
+        // Step 1: Register as vendor only if not already authenticated
+        if (!isAuthenticated || user?.default_role !== 'vendor') {
+          console.log('Registering vendor account...');
+          await register(formData.email, formData.password, 'shop');
+          console.log('Registration successful, tokens stored');
+        }
+        
+        // Small delay to ensure tokens are fully stored
+        await new Promise(resolve => setTimeout(resolve, 100));
         
         // Step 2: Create vendor profile with business details
-        await vendorApi.createProfile({
-          first_name: formData.businessName.split(' ')[0] || formData.businessName,
-          last_name: formData.businessName.split(' ').slice(1).join(' ') || 'Business',
-          username: formData.businessName.toLowerCase().replace(/\s+/g, '_'),
-          phone_number: formData.phone || '+61400000000',
+        console.log('Creating vendor profile...');
+        
+        // Ensure all fields meet API requirements (minLength: 3 for name fields)
+        const firstName = formData.businessName.split(' ')[0] || formData.businessName;
+        const lastName = formData.businessName.split(' ').slice(1).join(' ') || 'Business';
+        
+        // Ensure minimum length requirements
+        const safeFirstName = firstName.length >= 3 ? firstName : firstName.padEnd(3, 'X');
+        const safeLastName = lastName.length >= 3 ? lastName : lastName.padEnd(3, 'X');
+        
+        // Generate username (must be at least 3 chars)
+        let username = formData.businessName.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+        if (username.length < 3) {
+          username = username.padEnd(3, 'x');
+        }
+        
+        // Ensure phone number is provided
+        if (!formData.phone || formData.phone.trim() === '') {
+          throw new Error('Phone number is required');
+        }
+        
+        // Ensure address is provided
+        if (!formData.address || formData.address.trim() === '') {
+          throw new Error('Address is required');
+        }
+        
+        const profileData = {
+          first_name: safeFirstName,
+          last_name: safeLastName,
+          username: username,
+          phone_number: formData.phone.trim(),
           country: 'Australia',
           state: formData.suburb || 'NSW',
-          address: formData.address || 'Business Address',
+          address: formData.address.trim(),
           bio: `${formData.businessName} - ${formData.category}`,
           ratings: 0,
-        });
+        };
+        console.log('Profile data:', profileData);
         
-        // Navigate to dashboard
-        Alert.alert('Success!', 'Your business account has been created.', [
-          { text: 'OK', onPress: () => router.replace('/(business)/dashboard' as any) }
-        ]);
+        try {
+          const vendorProfile = await vendorApi.createProfile(profileData);
+          console.log('Vendor profile created:', vendorProfile);
+          
+          // Navigate to dashboard
+          Alert.alert('Success!', 'Your business profile has been created.', [
+            { text: 'OK', onPress: () => router.replace('/(business)/dashboard' as any) }
+          ]);
+        } catch (profileError: any) {
+          // Check if vendor profile already exists
+          if (profileError.message && profileError.message.includes('Vendor exists')) {
+            console.log('Vendor profile already exists, proceeding to dashboard');
+            // Profile already exists, just proceed to dashboard
+            Alert.alert('Profile Complete', 'Your business profile is already set up.', [
+              { text: 'OK', onPress: () => router.replace('/(business)/dashboard' as any) }
+            ]);
+          } else {
+            // Re-throw other errors
+            throw profileError;
+          }
+        }
       } catch (error: any) {
-        Alert.alert('Registration Failed', error.message || 'Please try again');
+        console.error('Setup error details:', error);
+        const errorMessage = error.message || error.toString() || 'Unknown error occurred';
+        Alert.alert(
+          'Setup Failed', 
+          `Failed to complete setup: ${errorMessage}\n\nPlease check your connection and try again.`,
+          [{ text: 'OK' }]
+        );
       } finally {
         setIsLoading(false);
       }

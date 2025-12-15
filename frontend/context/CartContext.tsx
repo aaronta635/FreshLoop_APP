@@ -20,8 +20,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const { isAuthenticated, user } = useAuth();
   
-  // Check if user is a customer (not a vendor)
-  const isCustomer = isAuthenticated && user?.default_role === 'customer';
+  // Check if user is a customer (not a shop/admin)
+  const isCustomer = isAuthenticated && user?.role === 'customer';
 
   // Fetch cart when customer authenticates (vendors don't have carts)
   useEffect(() => {

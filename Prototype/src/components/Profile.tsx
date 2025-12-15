@@ -163,7 +163,9 @@ export function Profile({ onNavigate }: ProfileProps) {
               <ChevronRight className="w-5 h-5 text-[#00492C]/40" />
             </button>
 
-            <button className="w-full flex items-center justify-between p-4 hover:bg-red-50 transition-colors">
+            <button 
+              onClick={() => onNavigate('help-centre')} 
+              className="w-full flex items-center justify-between p-4 hover:bg-red-50 transition-colors">
               <div className="flex items-center gap-3">
                 <div className="bg-red-100 rounded-full p-2">
                   <LogOut className="w-5 h-5 text-red-600" />
