@@ -42,7 +42,7 @@ const SLIDES: Slide[] = [
   {
     id: '3',
     emoji: '🏪',
-    iconBg: Colors.primary,
+    iconBg: Colors.beige,
     title: 'Eat Local',
     description:
       'Support your local community while discovering amazing food spots in Wollongong, Dapto, and Unanderra',

@@ -46,7 +46,7 @@ export default function OrdersScreen() {
     
     try {
       setIsLoading(true);
-      const fetchedOrders = await ordersApi.getOrders();
+      const fetchedOrders = await ordersApi.getAllOrders();
       setOrders(fetchedOrders);
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -236,7 +236,7 @@ export default function OrdersScreen() {
                 <Text style={styles.emptyText}>Browse deals and add items to your cart</Text>
                 <TouchableOpacity
                   style={styles.browseButton}
-                  onPress={() => router.push('/(tabs)/')}
+                  onPress={() => router.push('/(tabs)')}
                 >
                   <Text style={styles.browseButtonText}>Browse Deals</Text>
                 </TouchableOpacity>
@@ -256,35 +256,48 @@ export default function OrdersScreen() {
                     <View>
                       <Text style={styles.orderNumber}>Order #{order.id}</Text>
                       <Text style={styles.orderDate}>
-                        {order.created_at ? new Date(order.created_at).toLocaleDateString() : 'N/A'}
+                        {order.order_date ? new Date(order.order_date).toLocaleDateString() : 'N/A'}
                       </Text>
+                      {order.pickup_code && (
+                        <Text style={styles.pickupCode}>Pickup Code: {order.pickup_code}</Text>
+                      )}
                     </View>
                     <View style={[
                       styles.statusBadge,
                       order.status === 'confirmed' && styles.statusConfirmed,
+                      order.status === 'processing' && styles.statusProcessing,
                       order.status === 'pending' && styles.statusPending,
                     ]}>
                       <Text style={styles.statusText}>{order.status}</Text>
                     </View>
                   </View>
 
-                  {order.items.map((item, index) => (
-                    <View key={index} style={styles.orderItem}>
-                      <Image
-                        source={{ uri: getImageUrl(item.image_url) }}
-                        style={styles.orderItemImage}
-                      />
-                      <View style={styles.orderItemDetails}>
-                        <Text style={styles.orderItemTitle} numberOfLines={1}>{item.title}</Text>
-                        <Text style={styles.orderItemRestaurant}>{item.restaurant_name}</Text>
-                        <Text style={styles.orderItemQuantity}>Qty: {item.quantity}</Text>
+                  {order.order_items && order.order_items.length > 0 ? (
+                    order.order_items.map((item, index) => (
+                      <View key={item.id || index} style={styles.orderItem}>
+                        <View style={styles.orderItemImagePlaceholder}>
+                          <Ionicons name="cube-outline" size={24} color={Colors.textSecondary} />
+                        </View>
+                        <View style={styles.orderItemDetails}>
+                          <Text style={styles.orderItemTitle} numberOfLines={1}>
+                            Product ID: {item.product_id}
+                          </Text>
+                          <Text style={styles.orderItemRestaurant}>Qty: {item.quantity}</Text>
+                          <Text style={styles.orderItemStatus}>Status: {item.status}</Text>
+                        </View>
+                        <Text style={styles.orderItemPrice}>
+                          ${((item.price * item.quantity) / 100).toFixed(2)}
+                        </Text>
                       </View>
-                      <Text style={styles.orderItemPrice}>${item.total.toFixed(2)}</Text>
-                    </View>
-                  ))}
+                    ))
+                  ) : (
+                    <Text style={styles.noItemsText}>No items in this order</Text>
+                  )}
 
                   <View style={styles.orderFooter}>
-                    <Text style={styles.orderTotal}>Total: ${order.total_amount.toFixed(2)}</Text>
+                    <Text style={styles.orderTotal}>
+                      Total: ${(order.total_amount / 100).toFixed(2)}
+                    </Text>
                   </View>
                 </View>
               ))
@@ -465,6 +478,12 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 2,
   },
+  pickupCode: {
+    fontSize: FontSize.xs,
+    color: Colors.accent,
+    marginTop: 4,
+    fontWeight: FontWeight.semiBold,
+  },
   statusBadge: {
     paddingHorizontal: 12,
     paddingVertical: 4,
@@ -476,6 +495,9 @@ const styles = StyleSheet.create({
   },
   statusPending: {
     backgroundColor: 'rgba(245, 158, 11, 0.2)',
+  },
+  statusProcessing: {
+    backgroundColor: 'rgba(59, 130, 246, 0.2)',
   },
   statusText: {
     fontSize: FontSize.xs,
@@ -494,6 +516,14 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: BorderRadius.sm,
   },
+  orderItemImagePlaceholder: {
+    width: 50,
+    height: 50,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: Colors.lightGray,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   orderItemDetails: {
     flex: 1,
   },
@@ -505,6 +535,17 @@ const styles = StyleSheet.create({
   orderItemRestaurant: {
     fontSize: FontSize.xs,
     color: Colors.textSecondary,
+  },
+  orderItemStatus: {
+    fontSize: FontSize.xs,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  noItemsText: {
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
+    paddingVertical: Spacing.md,
   },
   orderItemQuantity: {
     fontSize: FontSize.xs,

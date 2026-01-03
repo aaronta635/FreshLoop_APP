@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // ============================================
 
 // API Base URL - Your production FreshLoop API
-const API_BASE_URL = 'https://freshloop.com.au';
+const API_BASE_URL = 'http://0.0.0.0:8000';
 
 // Token storage keys
 const ACCESS_TOKEN_KEY = 'access_token';
@@ -180,21 +180,54 @@ export interface CartSummary {
 }
 
 // Order status
-export type OrderStatus = 'processing' | 'shipped' | 'refunded';
+export type OrderStatus = 'processing' | 'shipped' | 'refunded' | 'pending' | 'confirmed' | 'cancelled' | 'completed';
 
 // Payment method
 export type PaymentMethod = 'cash' | 'bank_transfer' | 'card';
 
+// Order Item
+export interface OrderItem {
+  id: number;
+  order_id: number;
+  product_id: number;
+  vendor_id: number;
+  quantity: number;
+  price: number;
+  status: OrderStatus;
+  created_timestamp: string | null;
+  updated_timestamp: string | null;
+}
+
+// Payment Details
+export interface PaymentDetails {
+  payment_method?: PaymentMethod;
+  payment_ref?: string;
+  [key: string]: any;
+}
+
+// Shipping Details
+export interface ShippingDetails {
+  address?: string;
+  state?: string;
+  country?: string;
+  additional_note?: string;
+  contact_information?: string;
+  [key: string]: any;
+}
+
 // Order
 export interface Order {
   id: number;
-  customer_id: number | null;
+  pickup_code: string;
+  order_date: string;
+  customer_id: number;
+  total_amount: number;
   status: OrderStatus;
-  total_amount: number | null;
-  order_date: string | null;
-  customer: Customer;
-  created_timestamp: string | null;
   updated_timestamp: string | null;
+  customer: Customer;
+  order_items: OrderItem[];
+  payment_details: PaymentDetails | null;
+  shipping_details: ShippingDetails[];
 }
 
 // Vendor order item
@@ -857,15 +890,17 @@ export const cartApi = {
 // ============================================
 
 export const ordersApi = {
-  // Get all orders (admin)
-  async getAllOrders(): Promise<any> {
+  // Get all orders for current user
+  async getAllOrders(): Promise<Order[]> {
+    const authHeader = await getAuthHeader();
     const response = await fetch(`${API_BASE_URL}/order/`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        ...authHeader,
       },
     });
-    return handleResponse(response);
+    return handleResponse<Order[]>(response);
   },
 
   // Get vendor dashboard stats

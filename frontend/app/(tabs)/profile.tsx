@@ -21,7 +21,8 @@ export default function ProfileScreen() {
 
   const handleLogout = async () => {
     await logout();
-    router.replace('/(onboarding)/login');
+    router.dismissAll();
+    router.replace('/');
   };
 
   const handleLogin = () => {
@@ -51,11 +52,11 @@ export default function ProfileScreen() {
             <View style={styles.userDetails}>
               {isAuthenticated && user ? (
                 <>
-                  <Text style={styles.userName}>{user.first_name} {user.last_name}</Text>
+                  <Text style={styles.userName}>{(user as any).first_name ?? ''} {(user as any).last_name ?? ''}</Text>
                   <Text style={styles.userEmail}>{user.email}</Text>
                   <View style={styles.roleBadge}>
                     <Text style={styles.roleText}>
-                      {user.default_role === 'vendor' ? '🏪 Business' : '👤 Customer'}
+                      {user.role === 'shop' ? '🏪 Business' : '👤 Customer'}
                     </Text>
                   </View>
                 </>
@@ -73,7 +74,7 @@ export default function ProfileScreen() {
           {/* Stats */}
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{cart?.total_items_quantity || 0}</Text>
+              <Text style={styles.statValue}>{cart?.total_items || 0}</Text>
               <Text style={styles.statLabel}>In Cart</Text>
             </View>
             <View style={styles.statItem}>

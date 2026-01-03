@@ -147,16 +147,16 @@ export default function CheckoutScreen() {
                 ]}
               >
                 <Image 
-                  source={{ uri: getImageUrl(item.deal?.image_url) }} 
+                  source={{ uri: getImageUrl(item.image_url) }} 
                   style={styles.itemImage} 
                 />
                 <View style={styles.itemDetails}>
-                  <Text style={styles.itemTitle}>{item.deal?.title || 'Deal'}</Text>
-                  <Text style={styles.itemRestaurant}>{item.deal?.restaurant_name}</Text>
+                  <Text style={styles.itemTitle}>{item.title || 'Deal'}</Text>
+                  <Text style={styles.itemRestaurant}>{item.restaurant_name}</Text>
                   <Text style={styles.itemQuantity}>Qty: {item.quantity}</Text>
                 </View>
                 <Text style={styles.itemPrice}>
-                  {formatPrice((item.deal?.price || 0) * item.quantity)}
+                  {formatPrice((item.price || 0) * item.quantity)}
                 </Text>
               </View>
             ))}

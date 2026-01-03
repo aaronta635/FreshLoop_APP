@@ -14,7 +14,7 @@ import {
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '../../constants/Colors';
-import { productsApi, Product as APIDeal, API_BASE_URL } from '../../services/api';
+import { dealsApi, Deal as APIDeal, API_BASE_URL } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 const { width } = Dimensions.get('window');
@@ -67,11 +67,32 @@ export default function MerchantDashboardScreen() {
 
   const fetchMyDeals = async () => {
     try {
-      const deals = await productsApi.getMyProducts();
+      const deals = await dealsApi.getMyDeals();
       setMyDeals(deals);
     } catch (error: any) {
       console.error('Error fetching deals:', error);
-      // If not authorized, just show empty
+      
+      // Check if vendor profile needs to be created
+      if (error.message && error.message.includes('Complete your registration by creating your vendor account')) {
+        // Redirect to setup screen to complete vendor profile
+        // Pass a param to indicate this is profile completion, not new registration
+        Alert.alert(
+          'Complete Your Profile',
+          'You need to complete your vendor profile before you can manage deals.',
+          [
+            {
+              text: 'Go to Setup',
+              onPress: () => router.replace({
+                pathname: '/(business)/setup' as any,
+                params: { completeProfile: 'true' }
+              }),
+            },
+          ]
+        );
+        return;
+      }
+      
+      // If other error, just show empty
       setMyDeals([]);
     } finally {
       setIsLoading(false);
@@ -95,7 +116,12 @@ export default function MerchantDashboardScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await productsApi.deleteProduct(parseInt(dealId));
+              // Deals use string ids; keep as string
+              await dealsApi.getDeal(dealId); // quick existence check
+              // Ideally a delete endpoint; use vendor flow when added
+              // For now, no delete support in backend deals for unauth vendor-less
+              Alert.alert('Delete not supported in demo');
+              fetchMyDeals();
               fetchMyDeals();
             } catch (error: any) {
               Alert.alert('Error', error.message || 'Failed to delete deal');
@@ -107,8 +133,8 @@ export default function MerchantDashboardScreen() {
   };
 
   // Get active and inactive deals
-  const activeDeals = myDeals.filter(d => d.product_status && d.stock > 0);
-  const inactiveDeals = myDeals.filter(d => !d.product_status || d.stock <= 0);
+  const activeDeals = myDeals.filter(d => d.is_active && d.quantity > 0);
+  const inactiveDeals = myDeals.filter(d => !d.is_active || d.quantity <= 0);
 
   const renderHome = () => (
     <ScrollView 
@@ -173,19 +199,19 @@ export default function MerchantDashboardScreen() {
             {activeDeals.map((deal) => (
               <View key={deal.id} style={styles.dealCardSmall}>
                 <View style={styles.dealImageContainer}>
-                  <Image source={{ uri: deal.product_images?.[0]?.product_image || 'https://via.placeholder.com/150' }} style={styles.dealImage} />
+                  <Image source={{ uri: getImageUrl(deal.image_url) }} style={styles.dealImage} />
                   <View style={styles.ratingBadge}>
-                    <Text style={styles.ratingBadgeText}>{deal.stock} left</Text>
+                    <Text style={styles.ratingBadgeText}>{deal.quantity} left</Text>
                   </View>
                 </View>
                 <View style={styles.dealContent}>
-                  <Text style={styles.dealCategory}>{deal.category?.category_name || 'Food'}</Text>
-                  <Text style={styles.dealTitle} numberOfLines={2}>{deal.product_name}</Text>
+                  <Text style={styles.dealCategory}>{deal.restaurant_name}</Text>
+                  <Text style={styles.dealTitle} numberOfLines={2}>{deal.title}</Text>
                   <View style={styles.dealFooter}>
                     <Text style={styles.dealPrice}>${(deal.price / 100).toFixed(2)}</Text>
                     <View style={styles.countdownBadge}>
                       <Ionicons name="time" size={10} color={Colors.secondary} />
-                      <Text style={styles.countdownText}>{deal.stock} in stock</Text>
+                      <Text style={styles.countdownText}>{deal.quantity} in stock</Text>
                     </View>
                   </View>
                 </View>
@@ -228,7 +254,7 @@ export default function MerchantDashboardScreen() {
             </View>
             <View style={[styles.featuredCard, { padding: 16 }]}>
               <Text style={{ fontSize: 28, fontWeight: '700', color: Colors.accent }}>
-                {activeDeals.reduce((sum, d) => sum + d.stock, 0)}
+                {activeDeals.reduce((sum, d) => sum + d.quantity, 0)}
               </Text>
               <Text style={{ fontSize: 12, color: Colors.textSecondary, marginTop: 4 }}>Items Available</Text>
             </View>
@@ -351,12 +377,12 @@ export default function MerchantDashboardScreen() {
       ) : (
         myDeals.map((deal) => (
           <View key={deal.id} style={styles.liveDealCard}>
-            <Image source={{ uri: deal.product_images?.[0]?.product_image || 'https://via.placeholder.com/150' }} style={styles.liveDealImage} />
+            <Image source={{ uri: getImageUrl(deal.image_url) }} style={styles.liveDealImage} />
             <View style={styles.liveDealContent}>
               <View style={styles.liveDealHeader}>
                 <View style={styles.liveDealInfo}>
-                  <Text style={styles.liveDealCategory}>{deal.category?.category_name || 'Food'}</Text>
-                  <Text style={styles.liveDealTitle} numberOfLines={1}>{deal.product_name}</Text>
+                  <Text style={styles.liveDealCategory}>{deal.restaurant_name}</Text>
+                  <Text style={styles.liveDealTitle} numberOfLines={1}>{deal.title}</Text>
                 </View>
                 <TouchableOpacity onPress={() => handleDeleteDeal(deal.id.toString())}>
                   <Ionicons name="trash-outline" size={20} color={Colors.error} />
@@ -366,11 +392,11 @@ export default function MerchantDashboardScreen() {
                 <Text style={styles.liveDealPrice}>${(deal.price / 100).toFixed(2)}</Text>
                 <View style={styles.liveDealTime}>
                   <Ionicons name="cube-outline" size={12} color={Colors.primary} />
-                  <Text style={styles.liveDealTimeText}>{deal.stock} available</Text>
+                  <Text style={styles.liveDealTimeText}>{deal.quantity} available</Text>
                 </View>
               </View>
               <View style={styles.liveDealStatus}>
-                {deal.product_status && deal.stock > 0 ? (
+                {deal.is_active && deal.quantity > 0 ? (
                   <View style={styles.liveTag}>
                     <Text style={styles.liveTagText}>🟢 ACTIVE</Text>
                   </View>
@@ -379,7 +405,7 @@ export default function MerchantDashboardScreen() {
                     <Text style={[styles.liveTagText, { color: Colors.textSecondary }]}>⏸ ENDED</Text>
                   </View>
                 )}
-                <Text style={styles.soldToday}>{deal.stock} in stock</Text>
+                <Text style={styles.soldToday}>{deal.quantity} in stock</Text>
               </View>
             </View>
           </View>

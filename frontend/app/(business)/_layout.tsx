@@ -1,5 +1,4 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
-import { useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { View, ActivityIndicator, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,8 +8,8 @@ export default function BusinessLayout() {
   const router = useRouter();
   const segments = useSegments();
 
-  // Check if user is authenticated and is a vendor
-  const isVendor = isAuthenticated && user?.default_role === 'vendor';
+  // Check if user is authenticated and is a shop (business)
+  const isVendor = isAuthenticated && user?.role === 'shop';
   const currentScreen = segments[segments.length - 1];
 
   // If still loading auth state, show loading

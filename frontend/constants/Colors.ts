@@ -9,6 +9,7 @@ export const Colors = {
   white: '#FFFFFF',
   black: '#000000',
   error: '#EF4444',
+  beige: '#EAEBC4',
   
   // Utility colors
   textPrimary: '#00492C',

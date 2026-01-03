@@ -35,28 +35,8 @@ export default function DealDetailsScreen() {
   const fetchDeal = async (dealId: string) => {
     try {
       setIsLoading(true);
-      const fetchedDeals = await dealsApi.getDeals();
-      const foundDeal = fetchedDeals.find(d => d.id === dealId);
-      
-      if (foundDeal) {
-        setDeal(foundDeal);
-      } else {
-        // Use mock data if deal not found
-        setDeal({
-          id: dealId,
-          title: 'Classic Grilled Ribeye',
-          restaurant_name: 'Fresh Bites Cafe',
-          description: 'Perfectly grilled ribeye steak with roasted vegetables and garlic butter. A premium cut that would normally cost $25, now available at a great discount!',
-          price: 10.9,
-          quantity: 3,
-          pickup_address: '123 Crown Street, Wollongong',
-          image_url: 'https://images.unsplash.com/photo-1717158776685-d4b7c346e1a7?w=800',
-          is_active: true,
-          ready_time: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-          created_at: new Date().toISOString(),
-          updated_at: null,
-        });
-      }
+      const foundDeal = await dealsApi.getDeal(dealId);
+      setDeal(foundDeal);
     } catch (error) {
       console.error('Error fetching deal:', error);
       // Use mock data on error
@@ -65,7 +45,8 @@ export default function DealDetailsScreen() {
         title: 'Classic Grilled Ribeye',
         restaurant_name: 'Fresh Bites Cafe',
         description: 'Perfectly grilled ribeye steak with roasted vegetables and garlic butter.',
-        price: 10.9,
+        price: 1090,
+        price: 1090,
         quantity: 3,
         pickup_address: '123 Crown Street, Wollongong',
         image_url: 'https://images.unsplash.com/photo-1717158776685-d4b7c346e1a7?w=800',

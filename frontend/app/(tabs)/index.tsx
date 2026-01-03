@@ -77,10 +77,10 @@ export default function HomeScreen() {
     return 'https://images.unsplash.com/photo-1717158776685-d4b7c346e1a7?w=400';
   };
 
-  const renderProductCard = (product: Product) => (
+  const renderProductCard = (product: Product, isHotDeal: boolean = false) => (
     <TouchableOpacity
       key={product.id}
-      style={styles.dealCard}
+      style={[styles.dealCard, isHotDeal && styles.hotDealCard]}
       onPress={() => handleViewProduct(product.id)}
       activeOpacity={0.9}
     >
@@ -91,10 +91,18 @@ export default function HomeScreen() {
           defaultSource={{ uri: 'https://via.placeholder.com/160' }}
         />
         
+        {/* Hot Badge for Hot Deals */}
+        {isHotDeal && (
+          <View style={styles.hotBadge}>
+            <Ionicons name="flame" size={14} color={Colors.white} />
+            <Text style={styles.hotBadgeText}>HOT</Text>
+          </View>
+        )}
+        
         {/* Rating Badge */}
-        <View style={styles.ratingBadge}>
-          <Ionicons name="star" size={12} color={Colors.star} />
-          <Text style={styles.ratingText}>
+        <View style={[styles.ratingBadge, isHotDeal && styles.hotRatingBadge]}>
+          <Ionicons name="star" size={12} color={isHotDeal ? Colors.white : Colors.star} />
+          <Text style={[styles.ratingText, isHotDeal && styles.hotRatingText]}>
             {product.reviews && product.reviews.length > 0 
               ? (product.reviews.reduce((sum, r) => sum + r.rating, 0) / product.reviews.length).toFixed(1)
               : '4.0'}
@@ -103,7 +111,7 @@ export default function HomeScreen() {
         
         {/* Stock Badge */}
         {product.stock <= 5 && (
-          <View style={styles.quantityBadge}>
+          <View style={[styles.quantityBadge, isHotDeal && styles.hotQuantityBadge]}>
             <Text style={styles.quantityText}>{product.stock} left</Text>
           </View>
         )}
@@ -119,19 +127,19 @@ export default function HomeScreen() {
           <Ionicons
             name={favorites.has(product.id) ? 'heart' : 'add'}
             size={20}
-            color={favorites.has(product.id) ? Colors.error : Colors.primary}
+            color={favorites.has(product.id) ? Colors.error : (isHotDeal ? Colors.error : Colors.primary)}
           />
         </TouchableOpacity>
       </View>
 
       <View style={styles.dealInfo}>
-        <Text style={styles.dealRestaurant} numberOfLines={1}>
+        <Text style={[styles.dealRestaurant, isHotDeal && styles.hotDealRestaurant]} numberOfLines={1}>
           {product.category?.category_name || 'Food'}
         </Text>
-        <Text style={styles.dealName} numberOfLines={2}>
+        <Text style={[styles.dealName, isHotDeal && styles.hotDealName]} numberOfLines={2}>
           {product.product_name}
         </Text>
-        <Text style={styles.dealPrice}>${(product.price / 100).toFixed(2)}</Text>
+        <Text style={[styles.dealPrice, isHotDeal && styles.hotDealPrice]}>${(product.price / 100).toFixed(2)}</Text>
       </View>
     </TouchableOpacity>
   );
@@ -241,16 +249,19 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* Available Deals Section */}
+        {/* Hot Deals Section */}
         {products.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Available Now</Text>
-              <Ionicons name="chevron-down" size={20} color={Colors.primary} />
+              <View style={styles.hotDealsHeader}>
+                <Ionicons name="flame" size={24} color={Colors.error} />
+                <Text style={styles.hotDealsTitle}>Hot Deals</Text>
+              </View>
+              <Ionicons name="chevron-down" size={20} color={Colors.error} />
             </View>
 
             <View style={styles.dealsGrid}>
-              {products.slice(0, 2).map(renderProductCard)}
+              {products.slice(0, 2).map(product => renderProductCard(product, true))}
             </View>
           </View>
         )}
@@ -454,6 +465,56 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xl,
     fontWeight: FontWeight.bold,
     color: Colors.primary,
+  },
+  hotDealsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  hotDealsTitle: {
+    fontSize: FontSize.xl,
+    fontWeight: FontWeight.bold,
+    color: Colors.error,
+  },
+  hotDealCard: {
+    borderWidth: 2,
+    borderColor: Colors.error,
+  },
+  hotBadge: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    backgroundColor: Colors.error,
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    zIndex: 10,
+  },
+  hotBadgeText: {
+    fontSize: FontSize.xs,
+    fontWeight: FontWeight.bold,
+    color: Colors.white,
+  },
+  hotRatingBadge: {
+    backgroundColor: Colors.error,
+  },
+  hotRatingText: {
+    color: Colors.white,
+  },
+  hotQuantityBadge: {
+    backgroundColor: Colors.error,
+  },
+  hotDealRestaurant: {
+    color: Colors.error,
+  },
+  hotDealName: {
+    color: Colors.error,
+  },
+  hotDealPrice: {
+    color: Colors.error,
   },
   dealsGrid: {
     flexDirection: 'row',

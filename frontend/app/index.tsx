@@ -19,9 +19,12 @@ export default function ContinueAsScreen() {
       {/* Top Section - Logo & Tagline */}
       <View style={styles.topSection}>
         {/* Logo */}
-        <View style={styles.logoContainer}>
-          <Text style={styles.logoText}>Fresh Loop</Text>
-        </View>
+        
+          <Image 
+            source={require('../assets/images/freshloop-logo.png')} 
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
 
         {/* Tagline */}
         <Text style={styles.tagline}>
@@ -74,6 +77,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.lg,
     marginBottom: Spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoImage: {
+    width: 800,
+    height: 280,
   },
   logoText: {
     fontSize: FontSize.huge,
