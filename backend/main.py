@@ -1,10 +1,10 @@
 from fastapi import FastAPI
-
+from fastapi.staticfiles import StaticFiles
 from core.middleware import start_up_db
 from core.db import Base, engine
 import models  # ensure models are imported so metadata is populated
 from api.endpoints import router
-
+from pathlib import Path
 
 app = FastAPI()
 
@@ -17,3 +17,6 @@ def start_up():
 
 
 app.include_router(router)
+
+Path("static/uploads").mkdir(parents=True, exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")

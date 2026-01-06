@@ -48,7 +48,8 @@ export default function CheckoutScreen() {
     }
   }, [isAuthenticated]);
 
-  const getImageUrl = (imageUrl: string | null): string => {
+  const getImageUrl = (item: any): string => {
+    const imageUrl = item.product?.product_images?.[0]?.product_image;
     if (!imageUrl) return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400';
     if (imageUrl.startsWith('http')) return imageUrl;
     return `${API_BASE_URL.replace('/api', '')}${imageUrl}`;
@@ -67,8 +68,18 @@ export default function CheckoutScreen() {
     setIsProcessing(true);
 
     try {
-      // Call checkout API
-      const result = await cartApi.checkout();
+      // Determine payment method based on selection
+      const selectedMethod = paymentMethods.find(m => m.id === selectedPayment);
+      const paymentMethod = selectedMethod?.type === 'apple_pay' || selectedMethod?.type === 'google_pay' 
+        ? 'card' 
+        : 'card';
+
+      // Call checkout API with payment details
+      const result = await cartApi.checkout({
+        payment_details: {
+          payment_method: paymentMethod as 'cash' | 'bank_transfer' | 'card',
+        },
+      });
       
       // Clear cart and navigate to confirmation
       await clearCart();
@@ -76,8 +87,9 @@ export default function CheckoutScreen() {
       router.replace({
         pathname: '/(customer)/order-confirmation',
         params: { 
-          orderId: result.order_id || 'ORD-' + Date.now(),
+          orderId: result.order_id || result.id || 'ORD-' + Date.now(),
           total: cart?.total_amount?.toString() || '0',
+          pickupCode: result.pickup_code || '',
         },
       });
     } catch (error: any) {
@@ -109,14 +121,14 @@ export default function CheckoutScreen() {
     }
   };
 
-  if (!cart || cart.items.length === 0) {
+  if (!cart || cart.cart_items.length === 0) {
     return (
       <View style={styles.emptyContainer}>
         <Ionicons name="cart-outline" size={64} color={Colors.textSecondary} />
         <Text style={styles.emptyTitle}>Your cart is empty</Text>
-        <Text style={styles.emptyText}>Add some deals to checkout</Text>
+        <Text style={styles.emptyText}>Add some products to checkout</Text>
         <TouchableOpacity style={styles.browseButton} onPress={() => router.push('/(tabs)')}>
-          <Text style={styles.browseButtonText}>Browse Deals</Text>
+          <Text style={styles.browseButtonText}>Browse Products</Text>
         </TouchableOpacity>
       </View>
     );
@@ -138,25 +150,25 @@ export default function CheckoutScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Order Summary</Text>
           <View style={styles.card}>
-            {cart.items.map((item, index) => (
+            {cart.cart_items.map((item, index) => (
               <View 
                 key={item.id} 
                 style={[
                   styles.orderItem,
-                  index < cart.items.length - 1 && styles.orderItemBorder
+                  index < cart.cart_items.length - 1 && styles.orderItemBorder
                 ]}
               >
                 <Image 
-                  source={{ uri: getImageUrl(item.image_url) }} 
+                  source={{ uri: getImageUrl(item) }} 
                   style={styles.itemImage} 
                 />
                 <View style={styles.itemDetails}>
-                  <Text style={styles.itemTitle}>{item.title || 'Deal'}</Text>
-                  <Text style={styles.itemRestaurant}>{item.restaurant_name}</Text>
+                  <Text style={styles.itemTitle}>{item.product?.product_name || 'Product'}</Text>
+                  <Text style={styles.itemRestaurant}>{item.product?.vendor?.username || 'Shop'}</Text>
                   <Text style={styles.itemQuantity}>Qty: {item.quantity}</Text>
                 </View>
                 <Text style={styles.itemPrice}>
-                  {formatPrice((item.price || 0) * item.quantity)}
+                  {formatPrice((item.product?.price || 0) * item.quantity)}
                 </Text>
               </View>
             ))}
@@ -172,7 +184,7 @@ export default function CheckoutScreen() {
               <View style={styles.pickupInfo}>
                 <Text style={styles.pickupLabel}>Pickup Address</Text>
                 <Text style={styles.pickupValue}>
-                  {cart.items[0]?.deal?.pickup_address || 'Address will be provided'}
+                  {cart.cart_items[0]?.product?.vendor?.address || 'Address will be provided'}
                 </Text>
               </View>
             </View>
@@ -182,12 +194,7 @@ export default function CheckoutScreen() {
               <View style={styles.pickupInfo}>
                 <Text style={styles.pickupLabel}>Pickup Time</Text>
                 <Text style={styles.pickupValue}>
-                  {cart.items[0]?.deal?.ready_time 
-                    ? new Date(cart.items[0].deal.ready_time).toLocaleTimeString([], { 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                      })
-                    : 'Ready soon'}
+                  {cart.cart_items[0]?.product?.pickup_time || 'Ready soon'}
                 </Text>
               </View>
             </View>

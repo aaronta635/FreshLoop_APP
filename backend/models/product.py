@@ -36,6 +36,7 @@ class Product(Base):
     long_description = Column(TEXT, nullable=True)
     stock = Column(Integer, nullable=False)
     price = Column(Integer, nullable=False)
+    pickup_time = Column(String, nullable=True)  # e.g., "10:00-14:00" or "After 5PM"
     created_timestamp = Column(TIMESTAMP(timezone=True), server_default=text("now()"))
     updated_timestamp = Column(DateTime, nullable=True)
     product_category_id = Column(
@@ -44,6 +45,7 @@ class Product(Base):
         nullable=False,
     )
 
+    vendor = relationship("Vendor", backref="products")
     cart_items = relationship("Cart", back_populates="product")
     product_images = relationship("ProductImage", back_populates="product")
     category = relationship("ProductCategory", back_populates="products")

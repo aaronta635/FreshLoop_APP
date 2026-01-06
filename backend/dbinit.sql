@@ -105,57 +105,57 @@ SELECT setval('product_category_id_seq', 18);
 -- =============================================
 -- Products (Food items with discounted prices)
 -- =============================================
-INSERT INTO products (id, vendor_id, product_category_id, product_name, short_description, sku, product_status, long_description, stock, price) VALUES
+INSERT INTO products (id, vendor_id, product_category_id, product_name, short_description, sku, product_status, long_description, stock, price, pickup_time) VALUES
     -- Fresh Bakery Products (vendor_id = 1, category = food = 8)
     (1, 1, 8, 'Artisan Sourdough Bread', 'Fresh baked sourdough, best before tomorrow', 'BAK-SRD-001', true, 
      'Our signature sourdough bread made with a 100-year-old starter. Crispy crust, soft interior. Originally $8, now 50% off because it''s best enjoyed today!', 
-     15, 400),
+     15, 400, '7:00 AM - 10:00 AM'),
     (2, 1, 8, 'Croissant Box (6 pcs)', 'Buttery croissants, baked this morning', 'BAK-CRS-002', true, 
      'Six perfectly flaky, buttery croissants. Made with French butter. Great for breakfast or brunch. Save these from going to waste!', 
-     8, 600),
+     8, 600, '6:30 AM - 9:00 AM'),
     (3, 1, 8, 'Chocolate Cake Slice', 'Rich chocolate cake, fresh today', 'BAK-CHC-003', true, 
      'Decadent triple chocolate layer cake. Moist, rich, and absolutely delicious. Perfect for dessert lovers!', 
-     20, 350),
+     20, 350, '2:00 PM - 5:00 PM'),
     (4, 1, 8, 'Assorted Pastry Box', 'Mix of danishes, muffins, and scones', 'BAK-AST-004', true, 
      'A delightful assortment of our daily pastries including 2 danishes, 2 muffins, and 2 scones. Perfect variety pack!', 
-     5, 899),
+     5, 899, '8:00 AM - 11:00 AM'),
     (5, 1, 8, 'Baguette Bundle (3 pcs)', 'Classic French baguettes', 'BAK-BGT-005', true, 
      'Three traditional French baguettes with crispy crust. Perfect for sandwiches or with soup. Baked fresh daily!', 
-     12, 450),
+     12, 450, '7:00 AM - 10:00 AM'),
 
     -- Green Grocer Products (vendor_id = 2, category = grocery = 15)
     (6, 2, 15, 'Organic Veggie Box', 'Mixed seasonal vegetables', 'GRO-VEG-001', true, 
      'A curated box of organic seasonal vegetables including carrots, broccoli, bell peppers, and leafy greens. Slightly imperfect but perfectly delicious!', 
-     25, 1299),
+     25, 1299, '9:00 AM - 6:00 PM'),
     (7, 2, 15, 'Fruit Rescue Box', 'Mixed fruits, perfectly ripe', 'GRO-FRT-002', true, 
      'Assorted fruits that are perfectly ripe and ready to eat today! Includes apples, bananas, oranges, and seasonal selections.', 
-     30, 999),
+     30, 999, '9:00 AM - 6:00 PM'),
     (8, 2, 15, 'Salad Greens Mix (500g)', 'Fresh mixed salad leaves', 'GRO-SLD-003', true, 
      'Pre-washed mixed salad greens including spinach, arugula, and lettuce. Best used within 2 days for optimal freshness.', 
-     40, 399),
+     40, 399, '10:00 AM - 4:00 PM'),
     (9, 2, 15, 'Berry Medley Box', 'Strawberries, blueberries, raspberries', 'GRO-BRY-004', true, 
      'Fresh mixed berries - perfect for smoothies, desserts, or snacking! Includes strawberries, blueberries, and raspberries.', 
-     18, 699),
+     18, 699, '9:00 AM - 3:00 PM'),
     (10, 2, 15, 'Root Vegetable Bundle', 'Potatoes, carrots, onions, garlic', 'GRO-ROT-005', true, 
      'Essential root vegetables for your kitchen. Great for soups, roasts, and everyday cooking. Long-lasting and versatile!', 
-     35, 599),
+     35, 599, '9:00 AM - 7:00 PM'),
 
     -- City Deli Products (vendor_id = 3, category = food = 8)
     (11, 3, 8, 'Sandwich Combo Deal', 'Any sandwich + side + drink', 'DEL-CMB-001', true, 
      'Choose any sandwich from our menu with a side salad or chips and a drink. Perfect lunch deal at an unbeatable price!', 
-     50, 899),
+     50, 899, '11:00 AM - 2:00 PM'),
     (12, 3, 8, 'Soup of the Day (Large)', 'Chef''s daily soup selection', 'DEL-SOP-002', true, 
      'Hearty homemade soup made fresh daily. Comes with bread roll. Ask about today''s special!', 
-     30, 499),
+     30, 499, '11:30 AM - 3:00 PM'),
     (13, 3, 8, 'Prepared Meal Box', 'Ready-to-eat dinner for 2', 'DEL-MEL-003', true, 
      'Complete dinner for two including main course, two sides, and dessert. Just heat and enjoy! Changes daily.', 
-     10, 1599),
+     10, 1599, '5:00 PM - 8:00 PM'),
     (14, 3, 8, 'Antipasto Platter', 'Italian meats, cheeses, olives', 'DEL-ANT-004', true, 
      'Generous platter of imported Italian meats, artisan cheeses, marinated olives, and crusty bread. Perfect for sharing!', 
-     8, 1899),
+     8, 1899, '4:00 PM - 7:00 PM'),
     (15, 3, 8, 'Fresh Juice Combo (3 bottles)', 'Cold-pressed juices', 'DEL-JUI-005', true, 
      'Three bottles of our cold-pressed juices. Flavors vary daily - typically includes green, orange, and berry blends.', 
-     20, 799);
+     20, 799, '10:00 AM - 6:00 PM');
 
 SELECT setval('products_id_seq', 15);
 

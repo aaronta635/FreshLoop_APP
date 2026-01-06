@@ -12,7 +12,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '../../constants/Colors';
-import { dealsApi, Deal, API_BASE_URL } from '../../services/api';
+import { productsApi, Product, API_BASE_URL } from '../../services/api';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 
@@ -22,77 +22,75 @@ export default function DealDetailsScreen() {
   const { addToCart, isLoading: isCartLoading } = useCart();
   const { isAuthenticated } = useAuth();
   
-  const [deal, setDeal] = useState<Deal | null>(null);
+  const [product, setProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
     if (id) {
-      fetchDeal(id as string);
+      fetchProduct(id as string);
     }
   }, [id]);
 
-  const fetchDeal = async (dealId: string) => {
+  const fetchProduct = async (productId: string) => {
     try {
       setIsLoading(true);
-      const foundDeal = await dealsApi.getDeal(dealId);
-      setDeal(foundDeal);
+      const foundProduct = await productsApi.getProduct(parseInt(productId));
+      console.log('Fetched product:', JSON.stringify(foundProduct, null, 2));
+      setProduct(foundProduct);
     } catch (error) {
-      console.error('Error fetching deal:', error);
-      // Use mock data on error
-      setDeal({
-        id: dealId,
-        title: 'Classic Grilled Ribeye',
-        restaurant_name: 'Fresh Bites Cafe',
-        description: 'Perfectly grilled ribeye steak with roasted vegetables and garlic butter.',
-        price: 1090,
-        price: 1090,
-        quantity: 3,
-        pickup_address: '123 Crown Street, Wollongong',
-        image_url: 'https://images.unsplash.com/photo-1717158776685-d4b7c346e1a7?w=800',
-        is_active: true,
-        ready_time: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-        created_at: new Date().toISOString(),
-        updated_at: null,
-      });
+      console.error('Error fetching product:', error);
+      setProduct(null);
     } finally {
       setIsLoading(false);
     }
   };
 
   const getImageUrl = (): string => {
-    if (!deal?.image_url) {
+    if (!product?.product_images || product.product_images.length === 0) {
       return 'https://images.unsplash.com/photo-1717158776685-d4b7c346e1a7?w=800';
     }
-    if (deal.image_url.startsWith('http')) {
-      return deal.image_url;
+    const imageUrl = product.product_images[0].product_image;
+    if (!imageUrl) {
+      return 'https://images.unsplash.com/photo-1717158776685-d4b7c346e1a7?w=800';
     }
-    return `${API_BASE_URL.replace('/api', '')}${deal.image_url}`;
+    if (imageUrl.startsWith('http')) {
+      return imageUrl;
+    }
+    return `${API_BASE_URL.replace('/api', '')}${imageUrl}`;
   };
 
-  const formatPickupTime = (): string => {
-    if (!deal?.ready_time) return 'Today';
-    
-    const readyTime = new Date(deal.ready_time);
-    const now = new Date();
-    
-    // If ready time is in the past, show "Available now"
-    if (readyTime <= now) {
-      return 'Available now';
+  const getPickupTime = (): string => {
+    if (product?.pickup_time) {
+      return product.pickup_time;
     }
-    
-    // Format the pickup window
-    const hours = readyTime.getHours();
-    const minutes = readyTime.getMinutes();
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    const formattedHours = hours % 12 || 12;
-    const formattedMinutes = minutes.toString().padStart(2, '0');
-    
-    return `${formattedHours}:${formattedMinutes} ${ampm} - ${formattedHours}:30 ${ampm}`;
+    return 'Contact vendor for pickup time';
+  };
+
+  const getPickupAddress = (): string => {
+    if (product?.vendor) {
+      return `${product.vendor.address}, ${product.vendor.state}, ${product.vendor.country}`;
+    }
+    return 'Contact vendor for pickup location';
+  };
+
+  const getVendorName = (): string => {
+    if (product?.vendor) {
+      return product.vendor.username;
+    }
+    return product?.category?.category_name || 'Vendor';
+  };
+
+  const getAverageRating = (): string => {
+    if (product?.reviews && product.reviews.length > 0) {
+      const avg = product.reviews.reduce((sum, r) => sum + r.rating, 0) / product.reviews.length;
+      return avg.toFixed(1);
+    }
+    return '4.0';
   };
 
   const handleAddToCart = async () => {
-    if (!deal) return;
+    if (!product) return;
 
     if (!isAuthenticated) {
       Alert.alert(
@@ -109,16 +107,16 @@ export default function DealDetailsScreen() {
       return;
     }
 
-    if (quantity > deal.quantity) {
-      Alert.alert('Error', `Only ${deal.quantity} items available`);
+    if (quantity > product.stock) {
+      Alert.alert('Error', `Only ${product.stock} items available`);
       return;
     }
 
     try {
-      await addToCart(deal.id, quantity);
+      await addToCart(product.id, quantity);
       Alert.alert(
         'Added to Cart',
-        `${quantity}x ${deal.title} added to your cart!`,
+        `${quantity}x ${product.product_name} added to your cart!`,
         [
           { text: 'Continue Shopping', style: 'cancel' },
           { 
@@ -133,7 +131,7 @@ export default function DealDetailsScreen() {
   };
 
   const incrementQuantity = () => {
-    if (deal && quantity < deal.quantity) {
+    if (product && quantity < product.stock) {
       setQuantity(prev => prev + 1);
     }
   };
@@ -148,16 +146,16 @@ export default function DealDetailsScreen() {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
         <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Loading deal...</Text>
+        <Text style={styles.loadingText}>Loading product...</Text>
       </View>
     );
   }
 
-  if (!deal) {
+  if (!product) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
         <Ionicons name="alert-circle-outline" size={64} color={Colors.textSecondary} />
-        <Text style={styles.loadingText}>Deal not found</Text>
+        <Text style={styles.loadingText}>Product not found</Text>
         <TouchableOpacity style={styles.backLink} onPress={() => router.back()}>
           <Text style={styles.backLinkText}>Go Back</Text>
         </TouchableOpacity>
@@ -165,7 +163,7 @@ export default function DealDetailsScreen() {
     );
   }
 
-  const discount = Math.round(((deal.price * 2.5 - deal.price) / (deal.price * 2.5)) * 100);
+  const discount = Math.round(((product.price * 2.5 - product.price) / (product.price * 2.5)) * 100);
 
   return (
     <View style={styles.container}>
@@ -193,31 +191,31 @@ export default function DealDetailsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.contentContainer}
       >
-        {/* Restaurant Name */}
+        {/* Vendor Name */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Ionicons name="storefront" size={20} color={Colors.primary} />
-            <Text style={styles.restaurantName}>{deal.restaurant_name}</Text>
+            <Text style={styles.restaurantName}>{getVendorName()}</Text>
           </View>
           <View style={styles.ratingContainer}>
             <Ionicons name="star" size={16} color={Colors.star} />
-            <Text style={styles.ratingText}>4.0</Text>
+            <Text style={styles.ratingText}>{getAverageRating()}</Text>
           </View>
         </View>
 
-        {/* Item Name */}
-        <Text style={styles.itemName}>{deal.title}</Text>
+        {/* Product Name */}
+        <Text style={styles.itemName}>{product.product_name}</Text>
 
         {/* Price */}
         <View style={styles.priceContainer}>
-          <Text style={styles.price}>${(deal.price / 100).toFixed(2)}</Text>
-          <Text style={styles.originalPrice}>${(deal.price / 100 * 2.5).toFixed(2)}</Text>
+          <Text style={styles.price}>${(product.price / 100).toFixed(2)}</Text>
+          <Text style={styles.originalPrice}>${(product.price / 100 * 2.5).toFixed(2)}</Text>
         </View>
 
         {/* Description */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Description</Text>
-          <Text style={styles.description}>{deal.description}</Text>
+          <Text style={styles.description}>{product.long_description || product.short_description}</Text>
         </View>
 
         {/* Pickup Details */}
@@ -228,7 +226,7 @@ export default function DealDetailsScreen() {
             <Ionicons name="time-outline" size={20} color={Colors.primary} />
             <View style={styles.detailContent}>
               <Text style={styles.detailLabel}>Pickup Time</Text>
-              <Text style={styles.detailValue}>{formatPickupTime()}</Text>
+              <Text style={styles.detailValue}>{getPickupTime()}</Text>
             </View>
           </View>
 
@@ -236,7 +234,7 @@ export default function DealDetailsScreen() {
             <Ionicons name="location-outline" size={20} color={Colors.primary} />
             <View style={styles.detailContent}>
               <Text style={styles.detailLabel}>Location</Text>
-              <Text style={styles.detailValue}>{deal.pickup_address}</Text>
+              <Text style={styles.detailValue}>{getPickupAddress()}</Text>
             </View>
           </View>
 
@@ -245,7 +243,7 @@ export default function DealDetailsScreen() {
             <View style={styles.detailContent}>
               <Text style={styles.detailLabel}>Items Left</Text>
               <Text style={[styles.detailValue, styles.itemsLeftText]}>
-                Only {deal.quantity} left!
+                Only {product.stock} left!
               </Text>
             </View>
           </View>
@@ -264,11 +262,11 @@ export default function DealDetailsScreen() {
             </TouchableOpacity>
             <Text style={styles.quantityValue}>{quantity}</Text>
             <TouchableOpacity 
-              style={[styles.quantityButton, quantity >= deal.quantity && styles.quantityButtonDisabled]}
+              style={[styles.quantityButton, quantity >= product.stock && styles.quantityButtonDisabled]}
               onPress={incrementQuantity}
-              disabled={quantity >= deal.quantity}
+              disabled={quantity >= product.stock}
             >
-              <Ionicons name="add" size={24} color={quantity >= deal.quantity ? Colors.textSecondary : Colors.primary} />
+              <Ionicons name="add" size={24} color={quantity >= product.stock ? Colors.textSecondary : Colors.primary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -278,7 +276,7 @@ export default function DealDetailsScreen() {
       <View style={styles.footer}>
         <View style={styles.footerPrice}>
           <Text style={styles.footerPriceLabel}>Total</Text>
-          <Text style={styles.footerPriceValue}>${(deal.price / 100 * quantity).toFixed(2)}</Text>
+          <Text style={styles.footerPriceValue}>${(product.price / 100 * quantity).toFixed(2)}</Text>
         </View>
         <TouchableOpacity 
           style={[styles.reserveButton, isCartLoading && styles.reserveButtonDisabled]} 

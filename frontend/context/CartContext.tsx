@@ -5,9 +5,9 @@ import { useAuth } from './AuthContext';
 interface CartContextType {
   cart: CartSummary | null;
   isLoading: boolean;
-  addToCart: (productId: string, quantity?: number) => Promise<void>;
-  updateQuantity: (productId: string, quantity: number) => Promise<void>;
-  removeFromCart: (productId: string) => Promise<void>;
+  addToCart: (productId: number, quantity?: number) => Promise<void>;
+  updateQuantity: (productId: number, quantity: number) => Promise<void>;
+  removeFromCart: (productId: number) => Promise<void>;
   clearCart: () => Promise<void>;
   checkout: (paymentMethod?: PaymentMethod) => Promise<any>;
   refreshCart: () => Promise<void>;
@@ -21,7 +21,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated, user } = useAuth();
   
   // Check if user is a customer (not a shop/admin)
-  const isCustomer = isAuthenticated && user?.role === 'customer';
+  const isCustomer = isAuthenticated && user?.default_role === 'customer';
 
   // Fetch cart when customer authenticates (vendors don't have carts)
   useEffect(() => {
@@ -47,7 +47,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, [isCustomer]);
 
-  const addToCart = async (productId: string, quantity: number = 1) => {
+  const addToCart = async (productId: number, quantity: number = 1) => {
     try {
       setIsLoading(true);
       await cartApi.addToCart({ product_id: productId, quantity });
@@ -57,7 +57,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateQuantity = async (productId: string, quantity: number) => {
+  const updateQuantity = async (productId: number, quantity: number) => {
     try {
       setIsLoading(true);
       if (quantity <= 0) {
@@ -71,7 +71,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const removeFromCart = async (productId: string) => {
+  const removeFromCart = async (productId: number) => {
     try {
       setIsLoading(true);
       await cartApi.removeFromCart(productId);
@@ -85,7 +85,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true);
       await cartApi.clearCart();
-      setCart({ items: [], total_items: 0, total_amount: 0 });
+      setCart({ cart_items: [], total_items_quantity: 0, total_amount: 0 });
     } finally {
       setIsLoading(false);
     }
@@ -94,8 +94,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const checkout = async (paymentMethod: PaymentMethod = 'card') => {
     try {
       setIsLoading(true);
-      const result = await cartApi.checkout();
-      setCart({ items: [], total_items: 0, total_amount: 0 });
+      const result = await cartApi.checkout({
+        payment_details: { payment_method: paymentMethod },
+      });
+      setCart({ cart_items: [], total_items_quantity: 0, total_amount: 0 });
       return result;
     } finally {
       setIsLoading(false);

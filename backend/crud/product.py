@@ -33,6 +33,7 @@ class CRUDProduct(CRUDBase[Product, ProductCreate, ProductUpdate]):
             .offset(skip)
             .limit(limit)
             .options(sqlalchemy.orm.joinedload(self.model.reviews))
+            .options(sqlalchemy.orm.joinedload(self.model.vendor))
         ).all()
 
         return product_query if product_query else None
@@ -65,7 +66,15 @@ class CRUDProduct(CRUDBase[Product, ProductCreate, ProductUpdate]):
         return product_query
 
     def get_active_products(self, id: int) -> Product:
-        query_result = self._db.query(self.model).filter(self.model.id == id).first()
+        query_result = (
+            self._db.query(self.model)
+            .options(sqlalchemy.orm.joinedload(self.model.product_images))
+            .options(sqlalchemy.orm.joinedload(self.model.category))
+            .options(sqlalchemy.orm.joinedload(self.model.reviews))
+            .options(sqlalchemy.orm.joinedload(self.model.vendor))
+            .filter(self.model.id == id)
+            .first()
+        )
         if not query_result or not query_result.product_status:
             raise MissingResources
         return query_result

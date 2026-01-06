@@ -71,7 +71,7 @@ export default function HomeScreen() {
   };
 
   const getImageUrl = (product: Product): string => {
-    if (product.product_images && product.product_images.length > 0) {
+    if (product.product_images && product.product_images.length > 0 && product.product_images[0].product_image) {
       return product.product_images[0].product_image;
     }
     return 'https://images.unsplash.com/photo-1717158776685-d4b7c346e1a7?w=400';
@@ -88,18 +88,13 @@ export default function HomeScreen() {
         <Image 
           source={{ uri: getImageUrl(product) }} 
           style={styles.dealImage}
-          defaultSource={{ uri: 'https://via.placeholder.com/160' }}
         />
-        
-        {/* Hot Badge for Hot Deals */}
         {isHotDeal && (
           <View style={styles.hotBadge}>
             <Ionicons name="flame" size={14} color={Colors.white} />
             <Text style={styles.hotBadgeText}>HOT</Text>
           </View>
         )}
-        
-        {/* Rating Badge */}
         <View style={[styles.ratingBadge, isHotDeal && styles.hotRatingBadge]}>
           <Ionicons name="star" size={12} color={isHotDeal ? Colors.white : Colors.star} />
           <Text style={[styles.ratingText, isHotDeal && styles.hotRatingText]}>
@@ -108,15 +103,11 @@ export default function HomeScreen() {
               : '4.0'}
           </Text>
         </View>
-        
-        {/* Stock Badge */}
         {product.stock <= 5 && (
           <View style={[styles.quantityBadge, isHotDeal && styles.hotQuantityBadge]}>
             <Text style={styles.quantityText}>{product.stock} left</Text>
           </View>
         )}
-        
-        {/* Add Button */}
         <TouchableOpacity
           style={styles.addButton}
           onPress={(e) => {
@@ -131,13 +122,12 @@ export default function HomeScreen() {
           />
         </TouchableOpacity>
       </View>
-
       <View style={styles.dealInfo}>
         <Text style={[styles.dealRestaurant, isHotDeal && styles.hotDealRestaurant]} numberOfLines={1}>
-          {product.category?.category_name || 'Food'}
+          {String(product.category?.category_name || 'Food')}
         </Text>
         <Text style={[styles.dealName, isHotDeal && styles.hotDealName]} numberOfLines={2}>
-          {product.product_name}
+          {String(product.product_name || '')}
         </Text>
         <Text style={[styles.dealPrice, isHotDeal && styles.hotDealPrice]}>${(product.price / 100).toFixed(2)}</Text>
       </View>

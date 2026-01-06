@@ -34,8 +34,8 @@ export default function BusinessLoginScreen() {
 
     setIsLoading(true);
     try {
-      // Login as shop (business)
-      await login(formData.email, formData.password, 'shop');
+      // Login as vendor (business)
+      await login(formData.email, formData.password);
       router.replace('/(business)/dashboard' as any);
     } catch (error: any) {
       Alert.alert(

@@ -14,7 +14,7 @@ import {
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '../../constants/Colors';
-import { dealsApi, Deal as APIDeal, API_BASE_URL } from '../../services/api';
+import { Product, productsApi, API_BASE_URL } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 const { width } = Dimensions.get('window');
@@ -38,7 +38,8 @@ function formatCountdown(readyTime: string): string {
   return `${mins}m`;
 }
 
-function getImageUrl(imageUrl: string | null): string {
+function getImageUrl(product: Product): string {
+  const imageUrl = product.product_images?.[0]?.product_image;
   if (!imageUrl) {
     return 'https://images.unsplash.com/photo-1717158776685-d4b7c346e1a7?w=400';
   }
@@ -52,25 +53,25 @@ export default function MerchantDashboardScreen() {
   const router = useRouter();
   const { user, isAuthenticated, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('home');
-  const [myDeals, setMyDeals] = useState<APIDeal[]>([]);
+  const [myProducts, setMyProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Fetch deals when screen is focused
+  // Fetch products when screen is focused
   useFocusEffect(
     useCallback(() => {
       if (isAuthenticated) {
-        fetchMyDeals();
+        fetchMyProducts();
       }
     }, [isAuthenticated])
   );
 
-  const fetchMyDeals = async () => {
+  const fetchMyProducts = async () => {
     try {
-      const deals = await dealsApi.getMyDeals();
-      setMyDeals(deals);
+      const products = await productsApi.getMyProducts();
+      setMyProducts(products);
     } catch (error: any) {
-      console.error('Error fetching deals:', error);
+      console.error('Error fetching products:', error);
       
       // Check if vendor profile needs to be created
       if (error.message && error.message.includes('Complete your registration by creating your vendor account')) {
@@ -78,7 +79,7 @@ export default function MerchantDashboardScreen() {
         // Pass a param to indicate this is profile completion, not new registration
         Alert.alert(
           'Complete Your Profile',
-          'You need to complete your vendor profile before you can manage deals.',
+          'You need to complete your vendor profile before you can manage products.',
           [
             {
               text: 'Go to Setup',
@@ -93,7 +94,7 @@ export default function MerchantDashboardScreen() {
       }
       
       // If other error, just show empty
-      setMyDeals([]);
+      setMyProducts([]);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -102,10 +103,10 @@ export default function MerchantDashboardScreen() {
 
   const handleRefresh = () => {
     setIsRefreshing(true);
-    fetchMyDeals();
+    fetchMyProducts();
   };
 
-  const handleDeleteDeal = async (dealId: string) => {
+  const handleDeleteDeal = async (productId: number) => {
     Alert.alert(
       'Delete Deal',
       'Are you sure you want to delete this deal?',
@@ -116,13 +117,12 @@ export default function MerchantDashboardScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              // Deals use string ids; keep as string
-              await dealsApi.getDeal(dealId); // quick existence check
+              // products use string ids; keep as string
+              await productsApi.getProduct(productId); // quick existence check
               // Ideally a delete endpoint; use vendor flow when added
-              // For now, no delete support in backend deals for unauth vendor-less
+              // For now, no delete support in backend products for unauth vendor-less
               Alert.alert('Delete not supported in demo');
-              fetchMyDeals();
-              fetchMyDeals();
+              fetchMyProducts();
             } catch (error: any) {
               Alert.alert('Error', error.message || 'Failed to delete deal');
             }
@@ -132,9 +132,9 @@ export default function MerchantDashboardScreen() {
     );
   };
 
-  // Get active and inactive deals
-  const activeDeals = myDeals.filter(d => d.is_active && d.quantity > 0);
-  const inactiveDeals = myDeals.filter(d => !d.is_active || d.quantity <= 0);
+  // Get active and inactive products
+  const activeproducts = myProducts.filter(d => d.product_status && d.stock > 0);
+  const inactiveproducts = myProducts.filter(d => !d.product_status || d.stock <= 0);
 
   const renderHome = () => (
     <ScrollView 
@@ -170,7 +170,7 @@ export default function MerchantDashboardScreen() {
         <View style={styles.heroBannerContent}>
           <Text style={styles.heroBannerTitle}>MANAGE</Text>
           <Text style={styles.heroBannerTitle}>
-            YOUR <Text style={styles.heroBannerAccent}>DEALS</Text>
+            YOUR <Text style={styles.heroBannerAccent}>products</Text>
           </Text>
         </View>
       </View>
@@ -179,39 +179,39 @@ export default function MerchantDashboardScreen() {
       {isLoading && (
         <View style={{ paddingVertical: 40, alignItems: 'center' }}>
           <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={{ marginTop: 12, color: Colors.textSecondary }}>Loading your deals...</Text>
+          <Text style={{ marginTop: 12, color: Colors.textSecondary }}>Loading your products...</Text>
         </View>
       )}
 
-      {/* Active Deals */}
-      {!isLoading && activeDeals.length > 0 && (
+      {/* Active products */}
+      {!isLoading && activeproducts.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Active Deals ({activeDeals.length})</Text>
+            <Text style={styles.sectionTitle}>Active products ({activeproducts.length})</Text>
             <Ionicons name="chevron-down" size={20} color={Colors.textSecondary} />
           </View>
 
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.dealsRow}
+            contentContainerStyle={styles.productsRow}
           >
-            {activeDeals.map((deal) => (
-              <View key={deal.id} style={styles.dealCardSmall}>
+            {activeproducts.map((product) => (
+              <View key={product.id} style={styles.dealCardSmall}>
                 <View style={styles.dealImageContainer}>
-                  <Image source={{ uri: getImageUrl(deal.image_url) }} style={styles.dealImage} />
+                  <Image source={{ uri: getImageUrl(product) }} style={styles.dealImage} />
                   <View style={styles.ratingBadge}>
-                    <Text style={styles.ratingBadgeText}>{deal.quantity} left</Text>
+                    <Text style={styles.ratingBadgeText}>{product.stock} left</Text>
                   </View>
                 </View>
                 <View style={styles.dealContent}>
-                  <Text style={styles.dealCategory}>{deal.restaurant_name}</Text>
-                  <Text style={styles.dealTitle} numberOfLines={2}>{deal.title}</Text>
+                  <Text style={styles.dealCategory}>{product.vendor?.username || 'Shop'}</Text>
+                  <Text style={styles.dealTitle} numberOfLines={2}>{product.product_name}</Text>
                   <View style={styles.dealFooter}>
-                    <Text style={styles.dealPrice}>${(deal.price / 100).toFixed(2)}</Text>
+                    <Text style={styles.dealPrice}>${(product.price / 100).toFixed(2)}</Text>
                     <View style={styles.countdownBadge}>
                       <Ionicons name="time" size={10} color={Colors.secondary} />
-                      <Text style={styles.countdownText}>{deal.quantity} in stock</Text>
+                      <Text style={styles.countdownText}>{product.stock} in stock</Text>
                     </View>
                   </View>
                 </View>
@@ -222,26 +222,26 @@ export default function MerchantDashboardScreen() {
       )}
 
       {/* Empty State */}
-      {!isLoading && myDeals.length === 0 && (
+      {!isLoading && myProducts.length === 0 && (
         <View style={{ paddingVertical: 40, alignItems: 'center' }}>
           <Ionicons name="storefront-outline" size={64} color={Colors.textSecondary} />
           <Text style={{ marginTop: 12, fontSize: 18, fontWeight: '600', color: Colors.primary }}>
-            No Deals Yet
+            No Products Yet
           </Text>
           <Text style={{ marginTop: 8, color: Colors.textSecondary, textAlign: 'center' }}>
-            Create your first deal to start{'\n'}selling surplus food
+            Create your first product to start{'\n'}selling surplus food
           </Text>
           <TouchableOpacity 
             style={{ marginTop: 16, backgroundColor: Colors.accent, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 24 }}
             onPress={() => router.push('/(business)/create-deal' as any)}
           >
-            <Text style={{ color: Colors.white, fontWeight: '600' }}>Create Deal</Text>
+            <Text style={{ color: Colors.white, fontWeight: '600' }}>Create Product</Text>
           </TouchableOpacity>
         </View>
       )}
 
       {/* Stats Summary */}
-      {!isLoading && myDeals.length > 0 && (
+      {!isLoading && myProducts.length > 0 && (
         <View style={[styles.section, { paddingBottom: 100 }]}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Quick Stats</Text>
@@ -249,12 +249,12 @@ export default function MerchantDashboardScreen() {
 
           <View style={styles.featuredGrid}>
             <View style={[styles.featuredCard, { padding: 16 }]}>
-              <Text style={{ fontSize: 28, fontWeight: '700', color: Colors.primary }}>{activeDeals.length}</Text>
-              <Text style={{ fontSize: 12, color: Colors.textSecondary, marginTop: 4 }}>Active Deals</Text>
+              <Text style={{ fontSize: 28, fontWeight: '700', color: Colors.primary }}>{activeproducts.length}</Text>
+              <Text style={{ fontSize: 12, color: Colors.textSecondary, marginTop: 4 }}>Active Products</Text>
             </View>
             <View style={[styles.featuredCard, { padding: 16 }]}>
               <Text style={{ fontSize: 28, fontWeight: '700', color: Colors.accent }}>
-                {activeDeals.reduce((sum, d) => sum + d.quantity, 0)}
+                {activeproducts.reduce((sum, p) => sum + p.stock, 0)}
               </Text>
               <Text style={{ fontSize: 12, color: Colors.textSecondary, marginTop: 4 }}>Items Available</Text>
             </View>
@@ -319,7 +319,7 @@ export default function MerchantDashboardScreen() {
 
       <TouchableOpacity style={styles.templateLibraryCard}>
         <Text style={styles.templateLibraryTitle}>📋 Template Library</Text>
-        <Text style={styles.templateLibrarySubtitle}>Use pre-saved deals to publish faster</Text>
+        <Text style={styles.templateLibrarySubtitle}>Use pre-saved products to publish faster</Text>
       </TouchableOpacity>
 
       <View style={styles.createNewCard}>
@@ -335,7 +335,7 @@ export default function MerchantDashboardScreen() {
     </ScrollView>
   );
 
-  const renderLiveDeals = () => (
+  const renderLiveproducts = () => (
     <ScrollView 
       style={styles.tabContent} 
       contentContainerStyle={{ padding: Spacing.lg, paddingBottom: 100 }}
@@ -348,14 +348,14 @@ export default function MerchantDashboardScreen() {
         />
       }
     >
-      <Text style={styles.pageTitle}>My Deals</Text>
+      <Text style={styles.pageTitle}>My products</Text>
 
       <View style={styles.filterTabs}>
         <TouchableOpacity style={[styles.filterTab, styles.filterTabActive]}>
-          <Text style={styles.filterTabTextActive}>Active ({activeDeals.length})</Text>
+          <Text style={styles.filterTabTextActive}>Active ({activeproducts.length})</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.filterTab}>
-          <Text style={styles.filterTabText}>Ended ({inactiveDeals.length})</Text>
+          <Text style={styles.filterTabText}>Ended ({inactiveproducts.length})</Text>
         </TouchableOpacity>
       </View>
 
@@ -363,40 +363,40 @@ export default function MerchantDashboardScreen() {
         <View style={{ paddingVertical: 40, alignItems: 'center' }}>
           <ActivityIndicator size="large" color={Colors.primary} />
         </View>
-      ) : myDeals.length === 0 ? (
+      ) : myProducts.length === 0 ? (
         <View style={{ paddingVertical: 40, alignItems: 'center' }}>
           <Ionicons name="pricetag-outline" size={64} color={Colors.textSecondary} />
-          <Text style={{ marginTop: 12, fontSize: 16, color: Colors.textSecondary }}>No deals yet</Text>
+          <Text style={{ marginTop: 12, fontSize: 16, color: Colors.textSecondary }}>No products yet</Text>
           <TouchableOpacity 
             style={{ marginTop: 16, backgroundColor: Colors.accent, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 24 }}
             onPress={() => router.push('/(business)/create-deal' as any)}
           >
-            <Text style={{ color: Colors.white, fontWeight: '600' }}>Create Your First Deal</Text>
+            <Text style={{ color: Colors.white, fontWeight: '600' }}>Create Your First Product</Text>
           </TouchableOpacity>
         </View>
       ) : (
-        myDeals.map((deal) => (
-          <View key={deal.id} style={styles.liveDealCard}>
-            <Image source={{ uri: getImageUrl(deal.image_url) }} style={styles.liveDealImage} />
+        myProducts.map((product) => (
+          <View key={product.id} style={styles.liveDealCard}>
+            <Image source={{ uri: getImageUrl(product) }} style={styles.liveDealImage} />
             <View style={styles.liveDealContent}>
               <View style={styles.liveDealHeader}>
                 <View style={styles.liveDealInfo}>
-                  <Text style={styles.liveDealCategory}>{deal.restaurant_name}</Text>
-                  <Text style={styles.liveDealTitle} numberOfLines={1}>{deal.title}</Text>
+                  <Text style={styles.liveDealCategory}>{product.vendor?.username || 'Shop'}</Text>
+                  <Text style={styles.liveDealTitle} numberOfLines={1}>{product.product_name}</Text>
                 </View>
-                <TouchableOpacity onPress={() => handleDeleteDeal(deal.id.toString())}>
+                <TouchableOpacity onPress={() => handleDeleteDeal(product.id)}>
                   <Ionicons name="trash-outline" size={20} color={Colors.error} />
                 </TouchableOpacity>
               </View>
               <View style={styles.liveDealFooter}>
-                <Text style={styles.liveDealPrice}>${(deal.price / 100).toFixed(2)}</Text>
+                <Text style={styles.liveDealPrice}>${(product.price / 100).toFixed(2)}</Text>
                 <View style={styles.liveDealTime}>
                   <Ionicons name="cube-outline" size={12} color={Colors.primary} />
-                  <Text style={styles.liveDealTimeText}>{deal.quantity} available</Text>
+                  <Text style={styles.liveDealTimeText}>{product.stock} available</Text>
                 </View>
               </View>
-              <View style={styles.liveDealStatus}>
-                {deal.is_active && deal.quantity > 0 ? (
+              <View style={styles.liveproductstatus}>
+                {product.product_status && product.stock > 0 ? (
                   <View style={styles.liveTag}>
                     <Text style={styles.liveTagText}>🟢 ACTIVE</Text>
                   </View>
@@ -405,7 +405,7 @@ export default function MerchantDashboardScreen() {
                     <Text style={[styles.liveTagText, { color: Colors.textSecondary }]}>⏸ ENDED</Text>
                   </View>
                 )}
-                <Text style={styles.soldToday}>{deal.quantity} in stock</Text>
+                <Text style={styles.soldToday}>{product.stock} in stock</Text>
               </View>
             </View>
           </View>
@@ -444,8 +444,8 @@ export default function MerchantDashboardScreen() {
         <TouchableOpacity 
           style={styles.profileMenuItem}
           onPress={async () => {
+            router.replace('/' as any);
             await logout();
-            router.replace('/(business)/login' as any);
           }}
         >
           <Text style={[styles.profileMenuText, { color: Colors.error }]}>Log Out</Text>
@@ -460,7 +460,7 @@ export default function MerchantDashboardScreen() {
       {activeTab === 'home' && renderHome()}
       {activeTab === 'analysis' && renderAnalysis()}
       {activeTab === 'add' && renderAddLoop()}
-      {activeTab === 'live' && renderLiveDeals()}
+      {activeTab === 'live' && renderLiveproducts()}
       {activeTab === 'profile' && renderProfile()}
 
       {/* Bottom Navigation */}
@@ -517,7 +517,7 @@ export default function MerchantDashboardScreen() {
             color={activeTab === 'live' ? Colors.secondary : 'rgba(255,255,255,0.6)'}
           />
           <Text style={[styles.navLabel, activeTab === 'live' && styles.navLabelActive]}>
-            Live Deals
+            Live products
           </Text>
         </TouchableOpacity>
 
@@ -623,7 +623,7 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.bold,
     color: Colors.primary,
   },
-  dealsRow: {
+  productsRow: {
     gap: 12,
     paddingRight: Spacing.lg,
   },
@@ -936,7 +936,7 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.semiBold,
     color: Colors.primary,
   },
-  liveDealStatus: {
+  liveproductstatus: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,

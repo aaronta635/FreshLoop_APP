@@ -16,7 +16,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '../../constants/Colors';
-import { dealsApi, DealCreate } from '../../services/api';
+import { productsApi, ProductCreate, ProductUpdate, ProductCategoryEnum } from '../../services/api';
 
 export default function CreateDealScreen() {
   const router = useRouter();
@@ -109,21 +109,21 @@ export default function CreateDealScreen() {
     return true;
   };
 
-  const handleCreateDeal = async () => {
+  const handleCreateProduct = async () => {
     if (!validateForm()) return;
 
     setIsLoading(true);
     try {
-      let imageUrl: string | undefined;
+      let imageUrls: string[] = [];
 
       // Upload image if selected
+
       if (imageUri) {
         try {
-          const uploadResult = await dealsApi.uploadImage(imageUri);
-          imageUrl = uploadResult.image_url;
+          const uploadResult = await productsApi.uploadImage(imageUri);
+          imageUrls = [uploadResult.image_url];
         } catch (error) {
-          console.error('Image upload failed:', error);
-          // Continue without image
+          console.log('Image upload failed: ', error);
         }
       }
 
@@ -136,19 +136,18 @@ export default function CreateDealScreen() {
       if (readyTime < new Date()) {
         readyTime.setDate(readyTime.getDate() + 1);
       }
-
-      const dealData: DealCreate = {
-        title: formData.title.trim(),
-        restaurant_name: shopName,
-        description: formData.description.trim(),
-        price: Math.round(parseFloat(formData.price) * 100), // Convert dollars to cents
-        quantity: parseInt(formData.quantity),
-        pickup_address: formData.pickupAddress.trim(),
-        image_url: imageUrl,
-        ready_time: readyTime.toISOString(),
+      const productData: ProductCreate = {
+        product_name: formData.title.trim(),
+        short_description: formData.description.trim(),
+        long_description: formData.description.trim(),
+        product_images: imageUrls,
+        category: 'food' as ProductCategoryEnum,  // or let user select
+        stock: parseInt(formData.quantity),
+        price: Math.round(parseFloat(formData.price) * 100),
+        pickup_time: formData.readyTime,  // store the time string directly
       };
 
-      await dealsApi.createDeal(dealData);
+      await productsApi.createProduct(productData);
 
       Alert.alert(
         'Success!',
@@ -321,7 +320,7 @@ export default function CreateDealScreen() {
       <View style={styles.footer}>
         <TouchableOpacity
           style={[styles.createButton, isLoading && styles.createButtonDisabled]}
-          onPress={handleCreateDeal}
+          onPress={handleCreateProduct}
           disabled={isLoading}
         >
           {isLoading ? (

@@ -23,8 +23,8 @@ class CRUDOrder(CRUDBase[Order, OrderCreate, OrderCreate]):
         query = (
             self._db.query(self.model)
             .options(
-                sqlalchemy.orm.joinedload(Order.order_items),
-                sqlalchemy.orm.joinedload(Order.payment_details),
+                sqlalchemy.orm.joinedload(Order.order_items).joinedload(OrderItem.product),
+                sqlalchemy.orm.joinedload(Order.payment_details).joinedload(OrderItem.vendor),
                 sqlalchemy.orm.joinedload(Order.shipping_details),
                 sqlalchemy.orm.joinedload(Order.customer),
             )

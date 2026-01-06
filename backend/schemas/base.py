@@ -10,7 +10,7 @@ from pydantic import BaseModel, StringConstraints
 class CreateBaseModel(BaseModel):
 
     first_name: Annotated[str, StringConstraints(min_length=3, to_lower=True)]
-    last_name: Annotated[str, StringConstraints(min_length=3, to_lower=True)]
+    last_name: Annotated[str, StringConstraints(min_length=1, to_lower=True)]
     username: Annotated[str, StringConstraints(min_length=3, to_lower=True)]
     phone_number: str
     auth_id: Optional[int] = None

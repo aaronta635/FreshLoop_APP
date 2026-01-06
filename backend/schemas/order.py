@@ -29,9 +29,24 @@ class OrderItemsCreate(BaseModel):
     price: int
     quantity: int
 
+class ProductInfoForOrder(BaseModel):
+    id: int
+    product_name: str
+
+class VendorInfoForOrder(BaseModel):
+    id: int
+    username: str
+    address: str
+    state: str
+    country: str
+
+
 
 class OrderItemsReturn(ReturnBaseModel, OrderItemsCreate):
     "Return Schema for Items In an Order"
+    status: Optional[str] = None
+    product: Optional[ProductInfoForOrder] = None
+    vendor: Optional[VendorInfoForOrder] = None
 
 
 class PaymentDetailsCreate(BaseModel):

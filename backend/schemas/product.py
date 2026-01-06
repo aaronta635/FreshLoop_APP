@@ -6,6 +6,16 @@ from pydantic import AnyHttpUrl, BaseModel, Field, StringConstraints
 from schemas.base import ProductCategoryEnum, ProductOptionalBase, ReturnBaseModel
 
 
+class VendorLocationInfo(BaseModel):
+    """Vendor location info for product display"""
+    id: int
+    username: str
+    address: str
+    state: str
+    country: str
+    order_time: Optional[str] = None
+
+
 class ProductImageCreate(BaseModel):
     product_image: str
     product_id: int
@@ -29,13 +39,14 @@ class ProductCreate(ProductOptionalBase):
 
     vendor_id: Optional[int] = None
     product_name: str
-    product_images: list[AnyHttpUrl]
+    product_images: list[str]
     category: ProductCategoryEnum
     short_description: Annotated[str, StringConstraints(max_length=50)]
     product_status: bool = True
     long_description: str
     stock: int
     price: int = Field(gt=0)
+    pickup_time: Optional[str] = None  # e.g., "10:00-14:00" or "After 5PM"
 
 
 class ProductReturn(ReturnBaseModel, ProductCreate):
@@ -47,6 +58,7 @@ class ProductReturn(ReturnBaseModel, ProductCreate):
 
 class ProductsReturn(ProductReturn):
     reviews: Optional[list["ProductReviewReturn"]] = []
+    vendor: Optional[VendorLocationInfo] = None
 
 
 class ProductUpdate(ProductOptionalBase):
@@ -57,6 +69,7 @@ class ProductUpdate(ProductOptionalBase):
     long_description: Optional[str] = None
     stock: Optional[int] = None
     price: Optional[float] = None
+    pickup_time: Optional[str] = None
 
 
 class ProductImageUpdate(BaseModel):

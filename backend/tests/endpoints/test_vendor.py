@@ -75,7 +75,7 @@ async def test_vendor_create_short_names(client, database_override_dependencies,
 
     sample_vendor_create_dict = sample_vendor_create()
     # Testing if the endpoint will allow first, last and username to be less than 2 cause it can't be less than 3 characters
-    sample_vendor_create_dict[field] = sample_vendor_create_dict[field][0:2]
+    sample_vendor_create_dict[field] = sample_vendor_create_dict[field][0:1]
 
     rsp = await create_vendor(
         client=client,

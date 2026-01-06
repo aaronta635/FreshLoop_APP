@@ -280,10 +280,14 @@ export default function OrdersScreen() {
                         </View>
                         <View style={styles.orderItemDetails}>
                           <Text style={styles.orderItemTitle} numberOfLines={1}>
-                            Product ID: {item.product_id}
+                            {item.product?.product_name || `Product #${item.product_id}`}
                           </Text>
-                          <Text style={styles.orderItemRestaurant}>Qty: {item.quantity}</Text>
-                          <Text style={styles.orderItemStatus}>Status: {item.status}</Text>
+                          <Text style={styles.orderItemRestaurant}>
+                            📍 {item.vendor?.address || 'Pickup location TBD'}
+                          </Text>
+                          <Text style={styles.orderItemStatus}>
+                            Qty: {item.quantity} • {item.status}
+                          </Text>
                         </View>
                         <Text style={styles.orderItemPrice}>
                           ${((item.price * item.quantity) / 100).toFixed(2)}

@@ -1,4 +1,4 @@
-from fastapi import Depends, APIRouter, Query, status
+from fastapi import Depends, APIRouter, Query, status, UploadFile, File
 
 from api.dependencies.services import get_product_service
 from core.tokens import get_current_verified_customer, get_current_verified_vendor
@@ -17,6 +17,9 @@ from schemas import (
     ProductReviewUpdateReturn,
 )
 from services.product_service import ProductService
+import shutil
+import uuid
+from pathlib import Path
 
 router = APIRouter(prefix="/products", tags=["Product"])
 
@@ -80,7 +83,7 @@ async def sort_product_by_price(
     )
 
 
-@router.get("/{id}", response_model=ProductReturn)
+@router.get("/{id}", response_model=ProductsReturn)
 async def get_one_product(
     id: int,
     product_service: ProductService = Depends(get_product_service),
@@ -157,3 +160,22 @@ async def update_product_review(
     return await product_service.update_product_review(
         review_id=review_id, data_obj=data_obj
     )
+
+@router.post("/upload-image")
+async def upload_product_image(file: UploadFile = File(...)):
+    """Upload a product image and return the URL"""
+    # Create uploads directory if it doesn't exist
+    upload_dir = Path("static/uploads")
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Generate unique filename to avoid conflicts
+    file_ext = file.filename.split(".")[-1] if file.filename else "jpg"
+    filename = f"{uuid.uuid4()}.{file_ext}"
+    file_path = upload_dir / filename
+    
+    # Save the file
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    # Return the URL path (not full URL, frontend will construct it)
+    return {"image_url": f"/static/uploads/{filename}"}

@@ -17,6 +17,7 @@ const USER_ROLE_KEY = 'user_role';
 // TYPE DEFINITIONS (matching your OpenAPI spec)
 // ============================================
 
+
 // Roles enum
 export type UserRole = 'customer' | 'vendor';
 
@@ -116,6 +117,16 @@ export interface ProductReview {
   updated_timestamp: string | null;
 }
 
+// Vendor location info (for product display)
+export interface VendorLocationInfo {
+  id: number;
+  username: string;
+  address: string;
+  state: string;
+  country: string;
+  order_time: string | null;
+}
+
 // Product (main entity - replaces "Deal")
 export interface Product {
   id: number;
@@ -133,6 +144,8 @@ export interface Product {
   reviews?: ProductReview[];
   created_timestamp: string | null;
   updated_timestamp: string | null;
+  pickup_time: string | null;
+  vendor?: VendorLocationInfo | null;
 }
 
 // Product create payload
@@ -145,6 +158,7 @@ export interface ProductCreate {
   stock: number;
   price: number;
   sku?: string;
+  pickup_time: string;
 }
 
 // Product update payload
@@ -157,6 +171,7 @@ export interface ProductUpdate {
   stock?: number;
   price?: number;
   sku?: string;
+  pickup_time: string;
 }
 
 // Cart item (from cart summary)
@@ -196,6 +211,17 @@ export interface OrderItem {
   status: OrderStatus;
   created_timestamp: string | null;
   updated_timestamp: string | null;
+  product?: {
+    id: number;
+    product_name: string;
+  };
+  vendor?: {
+    id: number;
+    username: string;
+    address: string;
+    state: string;
+    country: string;
+  }
 }
 
 // Payment Details
@@ -708,6 +734,33 @@ export const productsApi = {
     await handleResponse(response);
   },
 
+  async uploadImage(imageUri: string): Promise<{ image_url: string }> {
+    const authHeader = await getAuthHeader();
+
+    const formData = new FormData();
+
+    // Get file execution
+    const uriParts = imageUri.split('.');
+    const fileType = uriParts[uriParts.length -1];
+
+    formData.append('file', {
+      uri: imageUri,
+      type: `image/${fileType}`,
+      name: `product_${Date.now()}.${fileType}`,
+    } as any);
+
+    const response = await fetch(`${API_BASE_URL}/products/upload-image`, {
+      method: 'POST',
+      headers: {
+        ...authHeader,
+      },
+      body: formData,
+    });
+
+    return handleResponse<{ image_url: string }>(response);
+
+  },
+
   // Update product image
   async updateProductImage(productImageId: number, imageUrl: string): Promise<{
     product_image: string;
@@ -979,31 +1032,6 @@ export const healthApi = {
 // ============================================
 // BACKWARD COMPATIBILITY (for gradual migration)
 // ============================================
-
-// Alias for existing code that uses dealsApi
-export const dealsApi = {
-  getDeals: () => productsApi.getProducts(),
-  getDeal: (id: string) => productsApi.getProduct(parseInt(id)),
-  getMyDeals: () => productsApi.getMyProducts(),
-  createDeal: (deal: any) => productsApi.createProduct({
-    product_name: deal.title,
-    short_description: deal.description,
-    long_description: deal.description,
-    product_images: deal.image_url ? [deal.image_url] : [],
-    category: 'food',
-    stock: deal.quantity,
-    price: deal.price,
-  }),
-  updateDeal: (id: string, deal: any) => productsApi.updateProduct(parseInt(id), {
-    product_name: deal.title,
-    short_description: deal.description,
-    long_description: deal.description,
-    stock: deal.quantity,
-    price: deal.price,
-  }),
-  deleteDeal: (id: string) => productsApi.deleteProduct(parseInt(id)),
-  getImageUrl: (imagePath: string) => imagePath,
-};
 
 // Export the API base URL for use elsewhere
 export { API_BASE_URL };

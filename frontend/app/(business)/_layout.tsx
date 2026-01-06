@@ -9,7 +9,7 @@ export default function BusinessLayout() {
   const segments = useSegments();
 
   // Check if user is authenticated and is a shop (business)
-  const isVendor = isAuthenticated && user?.role === 'shop';
+  const isVendor = isAuthenticated && user?.default_role === 'vendor';
   const currentScreen = segments[segments.length - 1];
 
   // If still loading auth state, show loading

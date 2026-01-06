@@ -146,6 +146,8 @@ class CartService:
             # surface order tracking details along with the payment init response
             paystack_rsp["order_id"] = order.id
             paystack_rsp["pickup_code"] = order.pickup_code
+            await self.queue_connection.enqueue_job("update_stock_after_checkout", order.id)
+            await self.crud_cart.clear_cart(current_user.role_id)
             return paystack_rsp
 
         payment_details_obj = PaymentDetailsCreate(
@@ -156,7 +158,7 @@ class CartService:
         await self.crud_payment.create(payment_details_obj)
 
         await self.queue_connection.enqueue_job("update_stock_after_checkout", order.id)
-
+        await self.crud_cart.clear_cart(current_user.role_id)
         return order
 
     async def verify_order_payment(

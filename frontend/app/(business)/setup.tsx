@@ -40,7 +40,7 @@ export default function BusinessSetupScreen() {
   const isCompletingProfile = params.completeProfile === 'true';
   // Start at step 0 for new registrations, step 1 if completing profile as authenticated vendor
   const [currentStep, setCurrentStep] = useState(
-    isCompletingProfile && isAuthenticated && user?.role === 'shop' ? 1 : 0
+    isCompletingProfile && isAuthenticated && user?.default_role === 'vendor' ? 1 : 0
   );
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -68,7 +68,7 @@ export default function BusinessSetupScreen() {
   // Check if user is already logged in (but not as vendor) - they should logout first
   // Only show this alert if NOT completing profile (i.e., new registration)
   useEffect(() => {
-    if (!isCompletingProfile && isAuthenticated && user?.role !== 'shop') {
+    if (!isCompletingProfile && isAuthenticated && user?.default_role !== 'vendor') {
       Alert.alert(
         'Already Logged In',
         'You are currently logged in as a customer. Please logout first to register a business account.',
@@ -137,9 +137,9 @@ export default function BusinessSetupScreen() {
       setIsLoading(true);
       try {
         // Step 1: Register as vendor only if not already authenticated
-        if (!isAuthenticated || user?.role !== 'shop') {
+        if (!isAuthenticated || user?.default_role !== 'vendor') {
           console.log('Registering vendor account...');
-          await register(formData.email, formData.password, 'shop');
+          await register(formData.email, formData.password, 'vendor');
           console.log('Registration successful, tokens stored');
         }
         
@@ -160,13 +160,14 @@ export default function BusinessSetupScreen() {
         }
         
         const profileData = {
-          business_name: formData.businessName.trim(),
-          business_type: formData.category,
-          description: `${formData.businessName} - ${formData.category}`,
+          first_name: formData.businessName.trim(),
+          last_name: 'Business',
+          username: formData.businessName.toLowerCase().replace(/\s+/g, '').slice(0, 20),
+          phone_number: formData.phone.trim(),
+          country: 'Australia',
+          state: 'NSW',
           address: `${formData.address.trim()}, ${formData.suburb} ${formData.postcode}`,
-          phone: formData.phone.trim(),
-          email: formData.email.trim() || undefined,
-          website: undefined,
+          bio: `${formData.businessName} - ${formData.category}`,
         };
         console.log('Profile data:', profileData);
         

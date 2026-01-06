@@ -66,6 +66,8 @@ class OrderItem(Base):
     updated_timestamp = Column(TIMESTAMP(timezone=True), nullable=True)
 
     order = relationship("Order", back_populates="order_items")
+    product = relationship("Product")
+    vendor = relationship("Vendor")
 
 
 class PaymentDetails(Base):
