@@ -26,6 +26,7 @@ class Order(Base):
         ForeignKey(column="customers.id", ondelete="CASCADE", onupdate="CASCADE"),
         nullable=True,
     )
+    customer_order_number = Column(Integer, nullable = True)
     total_amount = Column(Integer, nullable=False)
     pickup_code = Column(String, nullable=True, unique=True)
     status = Column(String, default="processing")

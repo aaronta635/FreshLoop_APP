@@ -247,6 +247,7 @@ export interface Order {
   pickup_code: string;
   order_date: string;
   customer_id: number;
+  customer_order_number: number,
   total_amount: number;
   status: OrderStatus;
   updated_timestamp: string | null;
@@ -946,6 +947,19 @@ export const ordersApi = {
   // Get all orders for current user
   async getAllOrders(): Promise<Order[]> {
     const authHeader = await getAuthHeader();
+
+    const storedUser = await AsyncStorage.getItem('user_data');
+    const storedRole = await AsyncStorage.getItem('user_role');
+    const token = await AsyncStorage.getItem('access_token');
+    
+    console.log('=== ORDER API DEBUG ===');
+    console.log('Token exists:', !!token);
+    console.log('Token (first 50 chars):', token?.substring(0, 50));
+    console.log('Stored role:', storedRole);
+    console.log('Stored user:', storedUser);
+    console.log('Auth header:', JSON.stringify(authHeader));
+    console.log('========================');
+
     const response = await fetch(`${API_BASE_URL}/order/`, {
       method: 'GET',
       headers: {

@@ -22,7 +22,7 @@ export default function ProfileScreen() {
   const handleLogout = async () => {
     await logout();
     router.dismissAll();
-    router.replace('/');
+    router.push('/');
   };
 
   const handleLogin = () => {
@@ -56,7 +56,7 @@ export default function ProfileScreen() {
                   <Text style={styles.userEmail}>{user.email}</Text>
                   <View style={styles.roleBadge}>
                     <Text style={styles.roleText}>
-                      {user.role === 'shop' ? '🏪 Business' : '👤 Customer'}
+                      {user.default_role === 'vendor' ? '🏪 Business' : '👤 Customer'}
                     </Text>
                   </View>
                 </>
@@ -74,7 +74,7 @@ export default function ProfileScreen() {
           {/* Stats */}
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{cart?.total_items || 0}</Text>
+              <Text style={styles.statValue}>{cart?.total_items_quantity || 0}</Text>
               <Text style={styles.statLabel}>In Cart</Text>
             </View>
             <View style={styles.statItem}>

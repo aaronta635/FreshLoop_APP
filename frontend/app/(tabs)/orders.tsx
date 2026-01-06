@@ -42,14 +42,21 @@ export default function OrdersScreen() {
   }, [isAuthenticated]);
 
   const fetchOrders = async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      console.log('fetchOrders: Not authenticated, skipping');
+      return;
+    }
     
     try {
       setIsLoading(true);
+      console.log('fetchOrders: Starting fetch...');
       const fetchedOrders = await ordersApi.getAllOrders();
+      console.log('fetchOrders: Success, got', fetchedOrders.length, 'orders');
       setOrders(fetchedOrders);
-    } catch (error) {
-      console.error('Error fetching orders:', error);
+    } catch (error: any) {
+      console.error('fetchOrders: Error:', error);
+      console.error('fetchOrders: Error message:', error.message);
+      console.error('fetchOrders: Error status:', error.status);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -254,7 +261,9 @@ export default function OrdersScreen() {
                 <View key={order.id} style={styles.orderCard}>
                   <View style={styles.orderHeader}>
                     <View>
-                      <Text style={styles.orderNumber}>Order #{order.id}</Text>
+                    <Text style={styles.orderNumber}>
+                      Order #{order.customer_order_number || order.id}
+                    </Text>
                       <Text style={styles.orderDate}>
                         {order.order_date ? new Date(order.order_date).toLocaleDateString() : 'N/A'}
                       </Text>

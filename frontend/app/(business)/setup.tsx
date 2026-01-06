@@ -427,6 +427,14 @@ export default function BusinessSetupScreen() {
     >
       {/* Header */}
       <View style={styles.header}>
+        {/* Back Button */}
+        <TouchableOpacity 
+          style={styles.headerBackButton} 
+          onPress={() => router.back()}
+        >
+          <Ionicons name="arrow-back" size={24} color={Colors.white} />
+        </TouchableOpacity>
+        
         <Text style={styles.headerTitle}>Setup Your Business</Text>
 
         {/* Progress Steps */}
@@ -516,6 +524,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     paddingTop: 48,
     paddingBottom: Spacing.lg,
+  },
+  headerBackButton: {
+    marginBottom: Spacing.sm,
+    alignSelf: 'flex-start',
+    padding: 4,
   },
   headerTitle: {
     fontSize: 32,

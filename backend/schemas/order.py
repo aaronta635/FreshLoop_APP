@@ -8,6 +8,7 @@ from schemas import CustomerReturn
 
 class OrderCreate(BaseModel):
     customer_id: Optional[int] = None
+    customer_order_number: Optional[int] = None
     status: OrderStatusEnum = OrderStatusEnum.PROCESSING
     total_amount: Optional[float] = None
     pickup_code: Optional[str] = None

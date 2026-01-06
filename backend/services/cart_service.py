@@ -110,8 +110,16 @@ class CartService:
         )
         customer = self.crud_customer.get(id=current_user.role_id)
 
+        existing_order_count = self.crud_order.get_customer_order_count(
+            customer_id=current_user.role_id
+        )
+
+        next_order_number = existing_order_count + 1
+
+
         order_data_obj = OrderCreate(
             customer_id=current_user.role_id,
+            customer_order_number=next_order_number,
             total_amount=cart_summary["total_amount"],
             pickup_code=generate_pickup_code(),
         )

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 
 from api.dependencies.services import get_order_service
-from core.tokens import get_current_verified_vendor
+from core.tokens import get_current_verified_vendor, get_current_verified_customer
 from models import AuthUser
 
 
@@ -15,9 +15,11 @@ router = APIRouter(prefix="/order", tags=["Order"])
 
 @router.get("/")
 async def get_all_orders(
+    current_user: AuthUser = Depends(get_current_verified_customer),
     order_service: OrderService = Depends(get_order_service),
 ):
-    return await order_service.get_all_orders()
+
+    return await order_service.get_all_orders(customer_id=current_user.role_id)
 
 
 @router.get("/vendor/activity", response_model=TotalSalesReturn)

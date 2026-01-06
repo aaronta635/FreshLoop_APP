@@ -21,8 +21,8 @@ class OrderService:
         self.crud_order = crud_order
         self.crud_order_item = crud_order_item
 
-    async def get_all_orders(self):
-        return await self.crud_order.get_all_orders()
+    async def get_all_orders(self, customer_id: int):
+        return await self.crud_order.get_orders_by_customer(customer_id)
 
     async def vendor_dashboard(self, vendor_id: int):
 

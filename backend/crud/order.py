@@ -24,13 +24,39 @@ class CRUDOrder(CRUDBase[Order, OrderCreate, OrderCreate]):
             self._db.query(self.model)
             .options(
                 sqlalchemy.orm.joinedload(Order.order_items).joinedload(OrderItem.product),
-                sqlalchemy.orm.joinedload(Order.payment_details).joinedload(OrderItem.vendor),
+                sqlalchemy.orm.joinedload(Order.order_items).joinedload(OrderItem.vendor),
+                sqlalchemy.orm.joinedload(Order.payment_details),
                 sqlalchemy.orm.joinedload(Order.shipping_details),
                 sqlalchemy.orm.joinedload(Order.customer),
             )
             .all()
         )
         return query
+
+    async def get_orders_by_customer(self, customer_id: int) -> List[Order]:
+        query = (
+            self._db.query(self.model)
+            .filter(Order.customer_id == customer_id)
+            .options(
+                sqlalchemy.orm.joinedload(Order.order_items).joinedload(OrderItem.product),
+                sqlalchemy.orm.joinedload(Order.order_items).joinedload(OrderItem.vendor),
+                sqlalchemy.orm.joinedload(Order.payment_details),
+                sqlalchemy.orm.joinedload(Order.shipping_details),
+                sqlalchemy.orm.joinedload(Order.customer),
+            )
+            .order_by(Order.id.desc())
+            .all()
+        )
+        return query
+
+    def get_customer_order_count(self, customer_id: int) -> int:
+        
+        count = (
+            self._db.query(self.model)
+            .filter(Order.customer_id == customer_id)
+            .count()
+        )
+        return count
 
 
 class CRUDOrderItem(CRUDBase[OrderItem, OrderItemsCreate, OrderItemsCreate]):
