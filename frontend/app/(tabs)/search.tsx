@@ -12,7 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '../../constants/Colors';
-import { dealsApi, Deal, API_BASE_URL } from '../../services/api';
+import { productsApi, Product, API_BASE_URL } from '../../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const RECENT_SEARCHES_KEY = 'recent_searches';
@@ -32,8 +32,8 @@ const CATEGORIES = [
 export default function SearchScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
-  const [products, setProducts] = useState<Deal[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<Deal[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -53,8 +53,8 @@ export default function SearchScreen() {
   const loadProducts = async () => {
     try {
       setIsLoading(true);
-      const fetchedDeals = await dealsApi.getDeals();
-      setProducts(fetchedDeals.filter(p => p.is_active && p.quantity > 0));
+      const fetchedDeals = await productsApi.getProducts();
+      setProducts(fetchedDeals.filter(p => p.product_status && p.stock > 0));
     } catch (error: any) {
       console.error('Error loading products:', error);
       // Don't show error for empty products
@@ -101,10 +101,10 @@ export default function SearchScreen() {
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(product =>
-        product.title?.toLowerCase().includes(query) ||
-        product.description?.toLowerCase().includes(query) ||
-        product.restaurant_name?.toLowerCase().includes(query) ||
-        product.pickup_address?.toLowerCase().includes(query)
+        product.product_name?.toLowerCase().includes(query) ||
+        product.short_description?.toLowerCase().includes(query) ||
+        product.vendor?.username?.toLowerCase().includes(query) ||
+        product.vendor?.address?.toLowerCase().includes(query)
       );
     }
 
@@ -115,9 +115,10 @@ export default function SearchScreen() {
         const keywords = category.filter.split(',');
         filtered = filtered.filter(product =>
           keywords.some(kw =>
-            product.title?.toLowerCase().includes(kw) ||
-            product.description?.toLowerCase().includes(kw) ||
-            product.restaurant_name?.toLowerCase().includes(kw)
+            product.product_name?.toLowerCase().includes(kw) ||
+            product.short_description?.toLowerCase().includes(kw) ||
+            product.vendor?.username?.toLowerCase().includes(kw) ||
+            product.vendor?.address?.toLowerCase().includes(kw)
           )
         );
       }
@@ -148,17 +149,18 @@ export default function SearchScreen() {
     setIsSearching(true);
   };
 
-  const handleProductPress = (product: Deal) => {
+  const handleProductPress = (product: Product) => {
     router.push({
       pathname: '/(customer)/deal-details',
       params: { id: product.id.toString() },
     });
   };
 
-  const getImageUrl = (product: Deal): string => {
-    if (product.image_url) {
-      if (product.image_url.startsWith('http')) return product.image_url;
-      return `${API_BASE_URL.replace('/api', '')}${product.image_url}`;
+  const getImageUrl = (product: Product): string => {
+    const imageUrl = product.product_images?.[0]?.product_image;
+    if (imageUrl) {
+      if (imageUrl.startsWith('http')) return imageUrl;
+      return `${API_BASE_URL.replace('/api', '')}${imageUrl}`;
     }
     return 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400';
   };
@@ -191,13 +193,13 @@ export default function SearchScreen() {
               style={styles.dealImage}
             />
             <View style={styles.dealInfo}>
-              <Text style={styles.dealRestaurant}>{product.restaurant_name || 'Food'}</Text>
-              <Text style={styles.dealTitle} numberOfLines={2}>{product.title}</Text>
+              <Text style={styles.dealRestaurant}>{product.vendor?.username || 'Food'}</Text>
+              <Text style={styles.dealTitle} numberOfLines={2}>{product.product_name}</Text>
               <View style={styles.dealMeta}>
                 <Text style={styles.dealPrice}>{formatPrice(product.price)}</Text>
                 <View style={styles.dealQuantity}>
                   <Ionicons name="cube-outline" size={14} color={Colors.textSecondary} />
-                  <Text style={styles.dealQuantityText}>{product.quantity} left</Text>
+                  <Text style={styles.dealQuantityText}>{product.stock} left</Text>
                 </View>
               </View>
             </View>
@@ -311,10 +313,10 @@ export default function SearchScreen() {
                 />
                 <View style={styles.featuredInfo}>
                   <Text style={styles.featuredRestaurant} numberOfLines={1}>
-                    {product.restaurant_name || 'Food'}
+                    {product.vendor?.username|| 'Food'}
                   </Text>
                   <Text style={styles.featuredTitle} numberOfLines={1}>
-                    {product.title}
+                    {product.product_name}
                   </Text>
                   <Text style={styles.featuredPrice}>{formatPrice(product.price)}</Text>
                 </View>

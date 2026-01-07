@@ -67,19 +67,19 @@ class CRUDOrderItem(CRUDBase[OrderItem, OrderItemsCreate, OrderItemsCreate]):
 
     async def get_order_items_by_vendor_id(
         self, vendor_id: int
-    ) -> Optional[List[OrderItem]]:
+    ) -> List[OrderItem]:
         query = (
             self._db.query(self.model)
             .filter(self.model.vendor_id == vendor_id)
             .options(
-                sqlalchemy.orm.joinedload(self.model.order).joinedload(Order.customer)
+                sqlalchemy.orm.joinedload(self.model.order).joinedload(Order.customer),
+                sqlalchemy.orm.joinedload(self.model.product),
             )
             .join(Order, self.model.order)
-            .join(PaymentDetails, Order.payment_details)
-            .filter(PaymentDetails.status == StatusEnum.SUCCESS)
+            .order_by(self.model.id.desc())
             .all()
         )
-        return query if query else None
+        return query
 
     async def get_order_items_by_vendor_id_and_date(
         self, vendor_id, days: int = 30, limit: int = 20, skip: int = 0

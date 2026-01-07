@@ -121,7 +121,7 @@ export default function DealDetailsScreen() {
           { text: 'Continue Shopping', style: 'cancel' },
           { 
             text: 'View Cart', 
-            onPress: () => router.push('/(tabs)/orders')
+            onPress: () => router.push('/(tabs)/cart')
           },
         ]
       );

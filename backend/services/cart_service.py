@@ -20,6 +20,7 @@ from schemas import (
     CartUpdate,
     CheckoutCreate,
     OrderCreate,
+    OrderItemsCreate,
     PaymentDetailsCreate,
     PaymentVerified,
 )
@@ -135,10 +136,23 @@ class CartService:
                 )
 
         order = await self.crud_order.create(order_data_obj)
+        
+        # Create order items SYNCHRONOUSLY before clearing cart
+        for product, quantity in products_and_quantity_in_cart:
+            order_item = OrderItemsCreate(
+                order_id=order.id,
+                vendor_id=product.vendor_id,
+                price=product.price,
+                quantity=quantity,
+                product_id=product.id,
+            )
+            await self.crud_order_item.create(order_item)
+        
+        # Shipping details can still be async (pass order.id, not the object)
         await self.queue_connection.enqueue_job(
-            "add_shipping_details", order, data_obj.shipping_details
+            "add_shipping_details", order.id, data_obj.shipping_details
         )
-        await self.queue_connection.enqueue_job("add_order_items", order)
+        
         paystack_metadata = {"order": order, "customer": customer}
         if (
             data_obj.payment_details.payment_method == PaymentMethodEnum.CARD

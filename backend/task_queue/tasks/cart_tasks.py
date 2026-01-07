@@ -1,6 +1,6 @@
 from typing import List, Tuple
 
-from crud import CRUDProduct
+from crud import CRUDProduct, CRUDOrder
 from crud import CRUDCustomer, CRUDShippingDetails, CRUDOrderItem, CRUDCart
 from models import Product
 from models.order import Order
@@ -8,11 +8,15 @@ from schemas import ShippingDetailsCreate, OrderItemsCreate
 
 
 async def add_shipping_details(
-    ctx, order: Order, shipping_details: ShippingDetailsCreate
+    ctx, order_id: int, shipping_details: ShippingDetailsCreate
 ):
     crud_customer: CRUDCustomer = ctx["crud_customer"]
     crud_shipping_details: CRUDShippingDetails = ctx["crud_shipping_details"]
-
+    crud_order: CRUDOrder = ctx["crud_order"]
+    
+    # Fetch fresh order from database
+    order = crud_order.get_or_raise_exception(id=order_id)
+    
     customer = crud_customer.get_or_raise_exception(id=order.customer_id)
 
     shipping_details.contact_information = (

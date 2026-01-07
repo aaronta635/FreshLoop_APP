@@ -214,6 +214,7 @@ export interface OrderItem {
   product?: {
     id: number;
     product_name: string;
+    product_images?: ProductImage[];
   };
   vendor?: {
     id: number;

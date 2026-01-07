@@ -54,9 +54,7 @@ class OrderService:
         order_items = await self.crud_order_item.get_order_items_by_vendor_id(
             vendor_id=vendor_id
         )
-        if not order_items:
-            raise MissingResources("No Orders completed yet")
-        return order_items
+        return order_items or []
 
     async def update_order_status(
         self,

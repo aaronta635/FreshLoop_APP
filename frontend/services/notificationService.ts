@@ -12,6 +12,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -188,8 +190,8 @@ export function setupNotificationListeners(
   // Return cleanup function
   return () => {
     console.log('[NotificationService] Removing notification listeners');
-    Notifications.removeNotificationSubscription(receivedListener);
-    Notifications.removeNotificationSubscription(responseListener);
+    receivedListener.remove();
+    responseListener.remove();
   };
 }
 

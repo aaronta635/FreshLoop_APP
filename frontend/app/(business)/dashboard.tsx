@@ -245,6 +245,24 @@ export default function MerchantDashboardScreen() {
         <View style={[styles.section, { paddingBottom: 100 }]}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Quick Stats</Text>
+
+            <TouchableOpacity 
+              style={{
+                backgroundColor: Colors.primary,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                paddingVertical: 14,
+                paddingHorizontal: 20,
+                borderRadius: BorderRadius.full,
+                marginTop: Spacing.md,
+              }}
+              onPress={() => router.push('/(business)/products-orders' as any)}
+            >
+              <Ionicons name="list" size={20} color={Colors.white} />
+              <Text style={{ color: Colors.white, fontWeight: '600' }}>View All Orders</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.featuredGrid}>
@@ -376,7 +394,17 @@ export default function MerchantDashboardScreen() {
         </View>
       ) : (
         myProducts.map((product) => (
-          <View key={product.id} style={styles.liveDealCard}>
+          <TouchableOpacity
+            key={product.id}
+            style={styles.liveDealCard}
+            onPress={() => router.push({
+              pathname: '/(business)/products-orders' as any,
+              params: {
+                productId: product.id.toString(),
+                productName: product.product_name
+              }
+            })}
+          >
             <Image source={{ uri: getImageUrl(product) }} style={styles.liveDealImage} />
             <View style={styles.liveDealContent}>
               <View style={styles.liveDealHeader}>
@@ -408,7 +436,7 @@ export default function MerchantDashboardScreen() {
                 <Text style={styles.soldToday}>{product.stock} in stock</Text>
               </View>
             </View>
-          </View>
+          </TouchableOpacity>
         ))
       )}
     </ScrollView>

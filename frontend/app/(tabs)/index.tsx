@@ -71,8 +71,10 @@ export default function HomeScreen() {
   };
 
   const getImageUrl = (product: Product): string => {
-    if (product.product_images && product.product_images.length > 0 && product.product_images[0].product_image) {
-      return product.product_images[0].product_image;
+    const imageUrl = product.product_images?.[0]?.product_image;
+    if (imageUrl) {
+      if (imageUrl.startsWith('http')) return imageUrl;
+      return `${API_BASE_URL.replace('/api', '')}${imageUrl}`;
     }
     return 'https://images.unsplash.com/photo-1717158776685-d4b7c346e1a7?w=400';
   };
@@ -265,7 +267,7 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.dealsGrid}>
-              {products.slice(2, 4).map(renderProductCard)}
+              {products.slice(2, 4).map((product) => renderProductCard(product))}
             </View>
           </View>
         )}
@@ -278,7 +280,7 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.dealsGrid}>
-              {products.slice(4).map(renderProductCard)}
+              {products.slice(4).map((product) => renderProductCard(product))}
             </View>
           </View>
         )}
