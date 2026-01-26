@@ -8,7 +8,11 @@ export function handleNotificationNavigation(
   notification: Notifications.Notification | Notifications.NotificationResponse
 ): void {
   try {
-    const data = notification.request.content.data;
+    // NotificationResponse has notification nested, Notification has request directly
+    const notificationData = 'notification' in notification 
+      ? notification.notification 
+      : notification;
+    const data = notificationData.request.content.data;
     console.log('[NotificationHandler] Handling notification navigation with data:', data);
 
     if (!data) {

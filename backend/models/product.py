@@ -1,4 +1,5 @@
 from __future__ import annotations
+from email.policy import default
 from typing import ClassVar
 
 from sqlalchemy.orm import relationship
@@ -93,3 +94,30 @@ class ProductReview(Base):
     rating = Column(Float, nullable=False)
     created_timestamp = Column(TIMESTAMP(timezone=True), server_default=text("now()"))
     updated_timestamp = Column(DateTime, nullable=True)
+
+class ProductTemplate(Base):
+    __tablename__ = "product_templates"
+
+    id = Column(Integer, primary_key=True, nullable=False)
+    vendor_id = Column(
+        Integer,
+        ForeignKey("vendors.id", ondelete="CASCADE", onupdate="CASCADE"),
+        nullable=False,
+    )
+    template_name = Column(String, nullable=False)
+    product_name = Column(String, nullable=False)
+    short_description = Column(String(length=50), nullable=False)
+    long_description = Column(TEXT, nullable=True)
+    price = Column(Integer, nullable=False)
+    category_id = Column(
+        Integer,
+        ForeignKey("product_category.id", ondelete="CASCADE", onupdate="CASCADE"),
+        nullable=True,
+    )
+    template_image = Column(String(length=500), nullable=True)
+    is_default = Column(Boolean, nullable=False, default=False)
+    created_timestamp = Column(TIMESTAMP(timezone=True), server_default=text("now()"))
+    updated_timestamp = Column(DateTime, nullable=True)
+
+    vendor = relationship("Vendor", backref="product_templates")
+    category = relationship("ProductCategory", backref="product_templates")

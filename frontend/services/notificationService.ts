@@ -26,23 +26,43 @@ export async function requestNotificationPermissions(): Promise<boolean> {
     console.log('[NotificationService] Requesting notification permissions...');
     
     if (!Device.isDevice) {
-      console.warn('[NotificationService] Must use physical device for Push Notifications');
+      console.warn('[NotificationService] ⚠️ Must use physical device for Push Notifications');
+      console.warn('[NotificationService] Simulators/emulators do not support push notifications');
       return false;
     }
 
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    const { status: existingStatus, canAskAgain } = await Notifications.getPermissionsAsync();
     console.log('[NotificationService] Existing permission status:', existingStatus);
+    console.log('[NotificationService] Can ask again:', canAskAgain);
     
     let finalStatus = existingStatus;
     
     if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
+      if (existingStatus === 'denied' && !canAskAgain) {
+        console.error('[NotificationService] ❌ Permissions permanently denied');
+        console.error('[NotificationService] Please enable notifications in device Settings > App Name > Notifications');
+        return false;
+      }
+      
+      console.log('[NotificationService] Requesting permissions...');
+      const { status, canAskAgain: newCanAskAgain } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
       console.log('[NotificationService] New permission status:', finalStatus);
+      console.log('[NotificationService] Can ask again:', newCanAskAgain);
+      
+      if (finalStatus === 'denied' && !newCanAskAgain) {
+        console.error('[NotificationService] ❌ Permissions denied and cannot ask again');
+        console.error('[NotificationService] Please enable notifications in device Settings > App Name > Notifications');
+        return false;
+      }
     }
     
     if (finalStatus !== 'granted') {
-      console.error('[NotificationService] Failed to get push token for push notification!');
+      console.error('[NotificationService] ❌ Failed to get push token for push notification!');
+      console.error('[NotificationService] Permission status:', finalStatus);
+      if (finalStatus === 'denied') {
+        console.error('[NotificationService] User denied permissions. Please grant permissions in device settings.');
+      }
       return false;
     }
 
@@ -78,12 +98,28 @@ export async function getDeviceToken(): Promise<string | null> {
       return null;
     }
 
-    const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+    // Try multiple ways to get the project ID
+    const projectId = 
+      Constants.expoConfig?.extra?.eas?.projectId ?? 
+      Constants.easConfig?.projectId ?? 
+      Constants.expoConfig?.projectId;
     
     if (!projectId) {
       console.error('[NotificationService] Project ID not found in app config');
+      console.error('[NotificationService] Available Constants:', {
+        hasExpoConfig: !!Constants.expoConfig,
+        hasEasConfig: !!Constants.easConfig,
+        expoConfigKeys: Constants.expoConfig ? Object.keys(Constants.expoConfig) : [],
+        easConfigKeys: Constants.easConfig ? Object.keys(Constants.easConfig) : [],
+      });
+      console.error('[NotificationService] To fix this:');
+      console.error('[NotificationService] 1. Run: npx eas init (if using EAS)');
+      console.error('[NotificationService] 2. Or add to app.json: "extra": { "eas": { "projectId": "your-project-id" } }');
+      console.error('[NotificationService] 3. Or get project ID from: https://expo.dev/accounts/[your-account]/projects/[your-project]');
       return null;
     }
+
+    console.log('[NotificationService] Using project ID:', projectId);
 
     const tokenData = await Notifications.getExpoPushTokenAsync({
       projectId: projectId,

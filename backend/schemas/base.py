@@ -62,6 +62,7 @@ class PaymentMethodEnum(str, Enum):
     CASH = "cash"
     BANK_TRANSFER = "bank_transfer"
     CARD = "card"
+    STRIPE = "stripe"
 
 
 class StatusEnum(str, Enum):

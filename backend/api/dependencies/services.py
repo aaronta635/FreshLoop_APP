@@ -1,6 +1,7 @@
 from fastapi import Depends
 
 from core.paystack import get_paystack
+from core.stripe_payment import get_stripe
 from crud import (
     get_crud_auth_user,
     get_crud_refresh_token,
@@ -11,6 +12,7 @@ from crud import (
     get_crud_product_category,
     get_crud_product_image,
     get_crud_product_review,
+    get_crud_product_template,
     get_crud_cart,
     get_crud_payment_details,
     get_crud_order_item,
@@ -80,6 +82,7 @@ def get_product_service(
     crud_product_category=Depends(get_crud_product_category),
     crud_product_image=Depends(get_crud_product_image),
     crud_product_review=Depends(get_crud_product_review),
+    crud_product_template=Depends(get_crud_product_template),
 ) -> ProductService:
     return ProductService(
         crud_auth_user=crud_auth_user,
@@ -88,6 +91,7 @@ def get_product_service(
         crud_product=crud_product,
         crud_product_image=crud_product_image,
         crud_product_review=crud_product_review,
+        crud_product_template=crud_product_template,
     )
 
 
@@ -102,6 +106,7 @@ def get_cart_service(
     crud_order_item=Depends(get_crud_order_item),
     crud_vendor=Depends(get_crud_vendor),
     paystack=Depends(get_paystack),
+    stripe=Depends(get_stripe)
 ) -> CartService:
     return CartService(
         crud_auth_user=crud_auth_user,
@@ -114,6 +119,7 @@ def get_cart_service(
         crud_order_item=crud_order_item,
         crud_vendor=crud_vendor,
         paystack=paystack,
+        stripe=stripe,
     )
 
 
@@ -127,3 +133,5 @@ def get_order_service(
         crud_order=crud_order,
         crud_order_item=crud_order_item,
     )
+
+

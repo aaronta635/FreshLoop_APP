@@ -106,3 +106,36 @@ class ProductReviewReturn(ReturnBaseModel):
     product_id: int
     review: str
     rating: float = Field(ge=0, le=5)
+
+
+class ProductTemplateCreate(BaseModel):
+    template_name: str
+    product_name: str
+    short_description: Annotated[str, StringConstraints(max_length=50)]
+    long_description: Optional[str] = None
+    price: int = Field(gt=0)
+    category_id: Optional[int] = None
+    template_image: Optional[str] = None
+    is_default: bool = False
+
+
+class ProductTemplateUpdate(BaseModel):
+    template_name: Optional[str] = None
+    product_name: Optional[str] = None
+    short_description: Optional[Annotated[str, StringConstraints(max_length=50)]] = None
+    long_description: Optional[str] = None
+    price: Optional[int] = Field(default=None, gt=0)
+    category_id: Optional[int] = None
+    template_image: Optional[str] = None
+    is_default: Optional[bool] = None
+
+class ProductTemplateReturn(ReturnBaseModel):
+    vendor_id: int
+    template_name: str
+    product_name: str
+    short_description: str
+    long_description: Optional[str] = None
+    price: int
+    category_id: Optional[int] = None
+    template_image: Optional[str] = None
+    is_default: bool

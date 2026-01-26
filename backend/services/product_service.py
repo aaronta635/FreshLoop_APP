@@ -1,4 +1,5 @@
 from arq import ArqRedis
+from typing import Optional
 
 from core.errors import InvalidRequest, MissingResources
 from crud import (
@@ -7,6 +8,7 @@ from crud import (
     CRUDProductCategory,
     CRUDProductImage,
     CRUDProductReview,
+    CRUDProductTemplate
 )
 from models import AuthUser, ProductCategory
 from schemas import (
@@ -16,6 +18,8 @@ from schemas import (
     ProductReviewUpdate,
     ProductUpdate,
     ProductImageCreate,
+    ProductTemplateCreate,
+    ProductTemplateUpdate
 )
 from utils.generate_sku import generate_random_sku
 
@@ -29,6 +33,7 @@ class ProductService:
         crud_product_category: CRUDProductCategory,
         crud_product_image: CRUDProductImage,
         crud_product_review: CRUDProductReview,
+        crud_product_template: CRUDProductTemplate,
         queue_connection: ArqRedis,
     ):
         self.crud_auth_user = crud_auth_user
@@ -36,6 +41,7 @@ class ProductService:
         self.crud_product_category = crud_product_category
         self.crud_product_image = crud_product_image
         self.crud_product_review = crud_product_review
+        self.crud_product_template = crud_product_template
         self.queue_connection = queue_connection
 
     async def get_product_categories(self):
@@ -190,3 +196,99 @@ class ProductService:
             id=review.id, data_obj=data_obj
         )
         return updated_review
+
+    async def create_template(
+        self,
+        data_obj: ProductTemplateCreate,
+        current_user: AuthUser,
+    ):
+        # Convert Pydantic model to dict and add vendor_id
+        template_data = data_obj.model_dump(exclude_none=True)
+        template_data["vendor_id"] = current_user.role_id
+        
+        if template_data.get("category_id"):
+            category = self.crud_product_category.get(id=template_data["category_id"])
+            if not category:
+                raise InvalidRequest("Category not found")
+        
+        template = await self.crud_product_template.create(template_data)
+        return template
+
+    async def get_vendor_templates(self, vendor_id: int):
+        templates = self.crud_product_template.get_templates_by_vendor(vendor_id=vendor_id)
+        return templates or []
+
+    async def update_template(
+        self,
+        template_id: int,
+        vendor_id: int,
+        data_obj: ProductTemplateUpdate,
+    ):
+        template = self.crud_product_template.get_template_by_id_and_vendor(
+            template_id=template_id, vendor_id=vendor_id
+        )
+        if not template:
+            raise MissingResources
+        
+        if data_obj.category_id:
+            category = self.crud_product_category.get(id=data_obj.category_id)
+            if not category:
+                raise InvalidRequest("Category not found")
+        
+        updated_template = await self.crud_product_template.update(
+            db_obj=template, obj_in=data_obj
+        )
+        return updated_template
+
+    async def delete_template(self, template_id: int, vendor_id: int):
+        template = self.crud_product_template.get_template_by_id_and_vendor(
+            template_id=template_id, vendor_id=vendor_id
+        )
+        if not template:
+            raise MissingResources
+        
+        await self.crud_product_template.remove(id=template_id)
+        return None
+
+    async def create_product_from_template(
+        self,
+        template_id: int,
+        current_user: AuthUser,
+        stock: int,
+        pickup_time: Optional[str] = None,
+    ):
+        template = self.crud_product_template.get_template_by_id_and_vendor(
+            template_id=template_id, vendor_id=current_user.role_id
+        )
+        if not template:
+            raise MissingResources
+        
+        # Get or create category
+        category = None
+        if template.category_id:
+            category = self.crud_product_category.get(id=template.category_id)
+        
+        if not category:
+            category = self.crud_product_category.get_by_category_name(
+                category_name="food"  # Default category
+            )
+            if not category:
+                category = await self.crud_product_category.create(
+                    data_obj={ProductCategory.CATEGORY_NAME: "food"}
+                )
+        
+        # Create product from template
+        product_data = ProductCreate(
+            vendor_id=current_user.role_id,
+            product_name=template.product_name,
+            short_description=template.short_description,
+            long_description=template.long_description or template.short_description,
+            product_images=[template.template_image] if template.template_image else [],
+            category=category.category_name,  # Assuming category_name matches ProductCategoryEnum
+            stock=stock,
+            price=template.price,
+            pickup_time=pickup_time or "14:00",
+            product_status=True,
+        )
+        
+        return await self.create_product(data_obj=product_data, current_user=current_user)

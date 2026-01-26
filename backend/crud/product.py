@@ -8,7 +8,7 @@ import sqlalchemy.orm
 from core.db import get_db
 from core.errors import MissingResources
 from crud.base import CRUDBase
-from models import Product, ProductCategory, ProductImage, ProductReview
+from models import Product, ProductCategory, ProductImage, ProductReview, ProductTemplate
 from schemas import (
     ProductCreate,
     ProductUpdate,
@@ -16,6 +16,8 @@ from schemas import (
     ProductImageCreate,
     ProductReviewCreate,
     ProductReviewUpdate,
+    ProductTemplateCreate,
+    ProductTemplateUpdate
 )
 
 
@@ -112,6 +114,29 @@ class CRUDProductCategory(
         )
         return query if query else None
 
+class CRUDProductTemplate(CRUDBase[ProductTemplate, ProductTemplateCreate, ProductTemplateUpdate]):
+    def get_templates_by_vendor(
+        self, vendor_id: int
+    ) -> Union[List[ProductTemplate], None]:
+        templates = (
+            self._db.query(self.model)
+            .filter(self.model.vendor_id == vendor_id)
+            .order_by(desc(self.model.created_timestamp))
+            .all()
+        )
+        return templates if templates else None
+
+    def get_template_by_id_and_vendor(
+        self, template_id: int, vendor_id: int
+    ) -> Union[ProductTemplate, None]:
+        template = (
+            self._db.query(self.model)
+            .filter(self.model.id == template_id)
+            .filter(self.model.vendor_id == vendor_id)
+            .first()
+        )
+        return template if template else None
+
 
 crud_product_image = CRUDProductImage(db=get_db(), model=ProductImage)
 crud_product_category = CRUDProductCategory(db=get_db(), model=ProductCategory)
@@ -131,3 +156,7 @@ def get_crud_product_category(db=Depends(get_db)) -> CRUDProductCategory:
 
 def get_crud_product_review(db=Depends(get_db)) -> CRUDProductReview:
     return CRUDProductReview(db=db, model=ProductReview)
+
+
+def get_crud_product_template(db=Depends(get_db)) -> CRUDProductTemplate:
+    return CRUDProductTemplate(db=db, model=ProductTemplate)

@@ -7,6 +7,8 @@ from .product import router as product_router
 from .cart import router as cart_router
 from .order import router as order_router
 from .monitoring import router as monitoring_router
+from .template import router as template_router
+from .stripe import router as stripe_router
 
 
 router = APIRouter()
@@ -19,3 +21,5 @@ router.include_router(product_router)
 router.include_router(order_router)
 router.include_router(cart_router)
 router.include_router(monitoring_router)
+router.include_router(template_router)
+router.include_router(stripe_router)

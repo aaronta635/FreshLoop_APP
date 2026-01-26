@@ -335,7 +335,10 @@ export default function MerchantDashboardScreen() {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={styles.templateLibraryCard}>
+      <TouchableOpacity 
+        style={styles.templateLibraryCard}
+        onPress={() => router.push('/(business)/templates' as any)}
+      >
         <Text style={styles.templateLibraryTitle}>📋 Template Library</Text>
         <Text style={styles.templateLibrarySubtitle}>Use pre-saved products to publish faster</Text>
       </TouchableOpacity>

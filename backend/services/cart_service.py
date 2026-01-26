@@ -3,6 +3,7 @@ from arq import ArqRedis
 
 from core.errors import InvalidRequest
 from core.paystack import PaystackClient
+from core.stripe_payment import StripeClient
 from crud import (
     CRUDAuthUser,
     CRUDProduct,
@@ -24,8 +25,11 @@ from schemas import (
     PaymentDetailsCreate,
     PaymentVerified,
 )
+import logging
+import httpx
 from utils.random_id import generate_pickup_code
 from utils.postmark_client import send_postmark_email
+from core import settings
 
 
 class CartService:
@@ -42,6 +46,7 @@ class CartService:
         crud_order_item: CRUDOrderItem,
         crud_vendor: CRUDVendor,
         paystack: PaystackClient,
+        stripe: StripeClient,
     ):
         self.crud_auth_user = crud_auth_user
         self.crud_product = crud_product
@@ -53,6 +58,7 @@ class CartService:
         self.crud_vendor = crud_vendor
         self.paystack = paystack
         self.queue_connection = queue_connection
+        self.stripe = stripe
 
     async def create_cart(self, data_obj: CartCreate, customer_id: int):
         product = self.crud_product.get_or_raise_exception(data_obj.product_id)
@@ -171,7 +177,22 @@ class CartService:
             await self.queue_connection.enqueue_job("update_stock_after_checkout", order.id)
             await self.crud_cart.clear_cart(current_user.role_id)
             return paystack_rsp
+        elif data_obj.payment_details.payment_method == PaymentMethodEnum.STRIPE:
+            stripe_rsp = await self.stripe.create_checkout_session(
+                amount=cart_summary["total_amount"],
+                email=current_user.email,
+                order=order,
+                customer=customer,
+                success_url=f"frontend://checkout/success?session_id={{CHECKOUT_SESSION_ID}}",
+                cancel_url="frontend://checkout/cancel",
+            )
 
+            stripe_rsp["order_id"] = order.id
+            stripe_rsp["pickup_code"] = order.pickup_code
+            await self.queue_connection.enqueue_job("update_stock_after_checkout", order.id)
+            await self.crud_cart.clear_cart(current_user.role_id)
+
+            return stripe_rsp
         payment_details_obj = PaymentDetailsCreate(
             order_id=order.id,
             payment_method=data_obj.payment_details.payment_method,
@@ -254,6 +275,151 @@ class CartService:
                 text_body=text_body,
             )
 
+        # Fire-and-forget notification to notification microservice (Expo push)
+        await self._send_order_confirm_notification(
+            user_id=order.customer_id if order else payment_rsp["metadata"].get("customer_id"),
+            order_id=order_id,
+        )
+
         return PaymentVerified(
             payment_verified=True, order_id=order_id, pickup_code=pickup_code
         )
+
+    async def verify_stripe_payment(
+        self,
+        session_id: str,
+    ):
+        """Verify Stripe payment after checkout session completion"""
+        # Check if payment already exists by session_id (stored as payment_ref)
+        payment_details = self.crud_payment.get_by_payment_ref(payment_ref=session_id)
+
+        if payment_details:
+            raise InvalidRequest("Payment Already Successful")
+
+        payment_rsp = await self.stripe.verify_payment(session_id=session_id)
+        order_id = int(payment_rsp["metadata"]["order_id"])
+        pickup_code = payment_rsp["metadata"].get("pickup_code")
+        pay_method = payment_rsp.get("channel", "card")
+
+        # Map Stripe status strings to StatusEnum
+        stripe_status = payment_rsp.get("status", "").lower()
+        if stripe_status == "success":
+            mapped_status = StatusEnum.SUCCESS
+        elif stripe_status == "abandoned":
+            mapped_status = StatusEnum.ABADONED
+        elif stripe_status == "failed":
+            mapped_status = StatusEnum.FAILED
+        else:
+            mapped_status = StatusEnum.FAILED
+
+        match mapped_status:
+            case StatusEnum.ABADONED:
+                raise InvalidRequest(
+                    "You have a pending transaction, Complete Your Payment"
+                )
+            case StatusEnum.FAILED:
+                await self.crud_order.delete(id=order_id)
+                raise InvalidRequest(
+                    "Payment Failed, Checkout again and complete Payment "
+                )
+            case StatusEnum.SUCCESS:
+                pass
+            case _:
+                await self.crud_order.delete(id=order_id)
+                raise InvalidRequest("Contact Stripe and try again")
+
+        payment_details_obj = PaymentDetailsCreate(
+            order_id=order_id,
+            payment_method=pay_method,
+            amount=payment_rsp["amount"],
+            payment_ref=session_id,  # Store session_id as payment_ref
+            status=StatusEnum.SUCCESS,
+            paid_at=payment_rsp.get("paid_at"),
+        )
+        await self.queue_connection.enqueue_job("update_stock_after_checkout", order_id)
+        await self.crud_payment.create(payment_details_obj)
+
+        order = self.crud_order.get(order_id)
+        order_items = self.crud_order_item.get_by_order_id(order_id=order_id) or []
+        vendor = None
+        if order_items:
+            vendor = self.crud_vendor.get(order_items[0].vendor_id)
+
+        seller_name = (
+            f"{vendor.first_name} {vendor.last_name}" if vendor else "the store"
+        )
+        order_time = vendor.order_time if vendor else None
+        total_price = order.total_amount if order else payment_details_obj.amount
+
+        text_body = (
+            f"Hi,\n\nYour order has been placed for {seller_name}.\n"
+            f"Pickup code: {pickup_code}\n"
+            f"Amount: {total_price}\n"
+            f"Payment method: {pay_method}\n"
+        )
+        if order_time:
+            text_body += f"Please head to the store by: {order_time}\n"
+        text_body += "\nThank you for shopping with us."
+
+        # Get customer email from order
+        customer = self.crud_customer.get(id=order.customer_id) if order else None
+        customer_email = customer.email if customer else None
+        if customer_email:
+            await send_postmark_email(
+                to_email=customer_email,
+                subject="Order confirmed",
+                text_body=text_body,
+            )
+
+        # Fire-and-forget notification to notification microservice (Expo push)
+        await self._send_order_confirm_notification(
+            user_id=order.customer_id if order else payment_rsp["metadata"].get("customer_id"),
+            order_id=order_id,
+        )
+
+        return PaymentVerified(
+            payment_verified=True, order_id=order_id, pickup_code=pickup_code
+        )
+
+    async def _send_order_confirm_notification(self, user_id: int | None, order_id: int):
+        """Notify notification microservice that an order was confirmed."""
+        if not settings.NOTIFICATION_SERVICE_ENABLED or not user_id:
+            logging.info(
+                "[Notification] Skipping order-confirm push (enabled=%s, user_id=%s)",
+                settings.NOTIFICATION_SERVICE_ENABLED,
+                user_id,
+            )
+            return
+
+        payload = {
+            "user_id": str(user_id),
+            "order": {"id": str(order_id), "status": "confirmed"},
+            "data": {"type": "order-confirm", "order_id": str(order_id)},
+        }
+        url = f"{settings.NOTIFICATION_SERVICE_URL.rstrip('/')}/notify/order-confirm"
+
+        logging.info(
+            "[Notification] Sending order-confirm push | user_id=%s | order_id=%s | url=%s",
+            user_id,
+            order_id,
+            url,
+        )
+
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.post(url, json=payload)
+                if resp.status_code >= 400:
+                    # Log but don't block the main flow
+                    logging.error(
+                        "[Notification] Order confirm push failed | status=%s | body=%s",
+                        resp.status_code,
+                        resp.text,
+                    )
+                else:
+                    logging.info(
+                        "[Notification] Order confirm push sent | status=%s",
+                        resp.status_code,
+                    )
+        except Exception as exc:
+            logging.exception("[Notification] Error sending order confirm push: %s", exc)
+

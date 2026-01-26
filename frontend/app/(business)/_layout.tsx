@@ -63,6 +63,9 @@ export default function BusinessLayout() {
       <Stack.Screen name="dashboard" />
       <Stack.Screen name="create-deal" />
       <Stack.Screen name="products-orders" />
+      <Stack.Screen name="templates" />
+      <Stack.Screen name="create-template" />
+      <Stack.Screen name="edit-template" />
     </Stack>
   );
 }

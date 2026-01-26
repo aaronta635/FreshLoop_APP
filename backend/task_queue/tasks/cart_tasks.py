@@ -13,7 +13,11 @@ async def add_shipping_details(
     crud_customer: CRUDCustomer = ctx["crud_customer"]
     crud_shipping_details: CRUDShippingDetails = ctx["crud_shipping_details"]
     crud_order: CRUDOrder = ctx["crud_order"]
-    
+
+    # If no shipping details were provided, skip gracefully.
+    if shipping_details is None:
+        return
+
     # Fetch fresh order from database
     order = crud_order.get_or_raise_exception(id=order_id)
     

@@ -5,7 +5,62 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // ============================================
 
 // API Base URL - Your production FreshLoop API
-const API_BASE_URL = 'http://0.0.0.0:8000';
+export const API_BASE_URL = 'https://susannah-nondiscountable-maxton.ngrok-free.dev';
+
+// Enable/disable API logging
+const ENABLE_API_LOGGING = true;
+
+// Log API calls
+function logApiCall(method: string, url: string, options?: RequestInit) {
+  if (!ENABLE_API_LOGGING) return;
+  
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log(`🌐 API ${method}: ${url}`);
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  
+  if (options?.headers) {
+    const headers = { ...options.headers } as any;
+    // Hide sensitive data
+    if (headers['Authorization']) {
+      headers['Authorization'] = headers['Authorization'].replace(/Bearer .+/, 'Bearer ***');
+    }
+    console.log('📤 Headers:', JSON.stringify(headers, null, 2));
+  }
+  
+  if (options?.body) {
+    try {
+      const body = typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
+      console.log('📤 Body:', JSON.stringify(body, null, 2));
+    } catch {
+      console.log('📤 Body:', options.body);
+    }
+  }
+}
+
+// Log API responses
+function logApiResponse(url: string, response: Response, data?: any, error?: any) {
+  if (!ENABLE_API_LOGGING) return;
+  
+  if (error) {
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log(`❌ API ERROR: ${url}`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('Status:', response?.status || 'No Response');
+    console.log('Error:', error);
+    if (data) {
+      console.log('Response Data:', JSON.stringify(data, null, 2));
+    }
+  } else {
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log(`✅ API SUCCESS: ${url}`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('Status:', response.status, response.statusText);
+    if (data) {
+      console.log('Response:', JSON.stringify(data, null, 2).substring(0, 500)); // Limit length
+    }
+  }
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+}
 
 // Token storage keys
 const ACCESS_TOKEN_KEY = 'access_token';
@@ -174,6 +229,32 @@ export interface ProductUpdate {
   pickup_time: string;
 }
 
+export interface ProductTemplate {
+  id: number;
+  vendor_id: number;
+  template_name: string;
+  product_name: string;
+  short_description: string;
+  long_description: string;
+  price: number;
+  category_id?: number;
+  template_image?: string;
+  is_default: boolean;
+  created_timestamp: string;
+  updated_timestamp: string;
+}
+
+export interface ProductTemplateCreate {
+  template_name: string;
+  product_name: string;
+  short_description: string;
+  long_description: string;
+  price: number;
+  category_id?: number;
+  template_image?: string;
+  is_default?: boolean;
+}
+
 // Cart item (from cart summary)
 export interface CartItem {
   id: number;
@@ -312,14 +393,49 @@ async function getAuthHeader(): Promise<{ Authorization: string } | {}> {
 }
 
 // Handle API responses
-async function handleResponse<T>(response: Response): Promise<T> {
+async function handleResponse<T>(response: Response, url?: string): Promise<T> {
+  let responseData: any = null;
+  
+  try {
+    // Try to get response text first (for error logging)
+    const responseText = await response.clone().text();
+    
+    // Parse JSON if possible
+    try {
+      responseData = JSON.parse(responseText);
+    } catch {
+      responseData = responseText || {};
+    }
+  } catch (e) {
+    console.warn('Could not read response body:', e);
+  }
+  
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    const message = errorData.detail || errorData.message || 'An error occurred';
+    const errorData = responseData || {};
+    const message = errorData.detail || errorData.message || errorData.error || 'An error occurred';
+    
+    // Log error details
+    if (url) {
+      logApiResponse(url, response, errorData, message);
+    } else {
+      console.error('❌ API Error:', {
+        url: response.url,
+        status: response.status,
+        statusText: response.statusText,
+        error: message,
+        data: errorData,
+      });
+    }
+    
     throw new ApiError(
       typeof message === 'string' ? message : JSON.stringify(message),
       response.status
     );
+  }
+  
+  // Log success
+  if (url) {
+    logApiResponse(url, response, responseData);
   }
   
   // Handle 204 No Content
@@ -327,7 +443,28 @@ async function handleResponse<T>(response: Response): Promise<T> {
     return {} as T;
   }
   
-  return response.json();
+  return responseData;
+}
+
+// Enhanced fetch wrapper with logging
+async function apiFetch(url: string, options?: RequestInit): Promise<Response> {
+  const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
+  
+  logApiCall(options?.method || 'GET', fullUrl, options);
+  
+  try {
+    const response = await fetch(fullUrl, options);
+    return response;
+  } catch (error: any) {
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.error(`❌ FETCH ERROR: ${fullUrl}`);
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.error('Network Error:', error.message);
+    console.error('Error Type:', error.name);
+    console.error('Full Error:', error);
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    throw error;
+  }
 }
 
 // Store tokens after login/register
@@ -380,15 +517,16 @@ export const authApi = {
     formData.append('username', data.email); // OAuth2 uses 'username'
     formData.append('password', data.password);
 
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    const url = '/auth/login';
+    const response = await apiFetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: formData.toString(),
     });
-    
-    const tokens = await handleResponse<Tokens>(response);
+
+    const tokens = await handleResponse<Tokens>(response, url);
     
     // Store tokens
     await storeTokens(tokens);
@@ -628,15 +766,15 @@ export const productsApi = {
     if (params?.limit !== undefined) queryParams.append('limit', params.limit.toString());
     
     const queryString = queryParams.toString();
-    const url = `${API_BASE_URL}/products${queryString ? `?${queryString}` : ''}`;
+    const url = `/products${queryString ? `?${queryString}` : ''}`;
     
-    const response = await fetch(url, {
+    const response = await apiFetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
     });
-    return handleResponse<Product[]>(response);
+    return handleResponse<Product[]>(response, url);
   },
 
   // Get single product by ID
@@ -829,6 +967,82 @@ export const productsApi = {
   },
 };
 
+// =============
+// TEMPLATE API
+// =============
+
+export const templatesApi = {
+  async getMyTemplates(): Promise<ProductTemplate[]> {
+    const authHeader = await getAuthHeader();
+    const url = '/templates/me';
+    const response = await apiFetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeader,
+      },
+    });
+    return handleResponse<ProductTemplate[]>(response, url);
+  },
+
+  async createTemplate(template: ProductTemplateCreate): Promise<ProductTemplate> {
+    const authHeader = await getAuthHeader();
+    const url = '/templates';
+    const response = await apiFetch(url, {
+      method: 'POST', 
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeader,
+      }, 
+      body: JSON.stringify(template),
+    });
+    return handleResponse<ProductTemplate>(response, url);
+  },
+
+  async updateTemplate(id: number, template: Partial<ProductTemplateCreate>): Promise<ProductTemplate> {
+    const authHeader = await getAuthHeader();
+    const url = `/templates/${id}`;
+    const response = await apiFetch(url, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeader,
+      },
+      body: JSON.stringify(template),
+    });
+    return handleResponse<ProductTemplate>(response, url)
+  },
+
+  async deleteTemplate(id: number): Promise<void> {
+    const authHeader = await getAuthHeader();
+    const url = `/templates/${id}`;
+    const response = await apiFetch(url, {
+      method: 'DELETE',
+      headers: {
+        ...authHeader,
+      },
+    });
+    return handleResponse<void>(response, url);
+  },
+
+  async createProductFromTemplate(templateId: number, overrides?: {
+    stock?: number;
+    pickup_time?: string;
+  }): Promise<Product> {
+    const authHeader = await getAuthHeader();
+    const url = `/templates/${templateId}/create-product`;
+    const response = await apiFetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeader,
+      },
+      body: JSON.stringify(overrides || {}),
+    });
+    return handleResponse<Product>(response, url);
+  },
+};
+
 // ============================================
 // CART API
 // ============================================
@@ -948,27 +1162,16 @@ export const ordersApi = {
   // Get all orders for current user
   async getAllOrders(): Promise<Order[]> {
     const authHeader = await getAuthHeader();
+    const url = '/order/';
 
-    const storedUser = await AsyncStorage.getItem('user_data');
-    const storedRole = await AsyncStorage.getItem('user_role');
-    const token = await AsyncStorage.getItem('access_token');
-    
-    console.log('=== ORDER API DEBUG ===');
-    console.log('Token exists:', !!token);
-    console.log('Token (first 50 chars):', token?.substring(0, 50));
-    console.log('Stored role:', storedRole);
-    console.log('Stored user:', storedUser);
-    console.log('Auth header:', JSON.stringify(authHeader));
-    console.log('========================');
-
-    const response = await fetch(`${API_BASE_URL}/order/`, {
+    const response = await apiFetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
         ...authHeader,
       },
     });
-    return handleResponse<Order[]>(response);
+    return handleResponse<Order[]>(response, url);
   },
 
   // Get vendor dashboard stats
@@ -1048,6 +1251,5 @@ export const healthApi = {
 // BACKWARD COMPATIBILITY (for gradual migration)
 // ============================================
 
-// Export the API base URL for use elsewhere
-export { API_BASE_URL };
+// API_BASE_URL is already exported at the top of the file
 

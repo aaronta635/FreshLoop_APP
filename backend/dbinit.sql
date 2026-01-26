@@ -7,7 +7,7 @@
 -- =============================================
 TRUNCATE TABLE shipping_details, payment_details, order_items, orders, cart, 
                product_reviews, product_image, products, product_category,
-               vendor_orders, vendor_ratings, vendors, customers, otp, 
+               product_templates, vendor_orders, vendor_ratings, vendors, customers, otp, 
                refresh_tokens, auth_details RESTART IDENTITY CASCADE;
 
 -- =============================================
@@ -278,3 +278,27 @@ INSERT INTO shipping_details (order_id, contact_information, additional_note, ad
 -- Email: customer1@zerosaver.com / Password: Password123!
 -- Email: vendor1@zerosaver.com / Password: Password123!
 -- Email: admin@zerosaver.com / Password: Password123!
+
+-- =============================================
+-- Product Templates Table (created by SQLAlchemy, SQL for reference)
+-- =============================================
+-- Note: This table is automatically created by SQLAlchemy on app startup.
+-- Run this SQL manually only if needed for manual database setup:
+/*
+CREATE TABLE IF NOT EXISTS product_templates (
+    id SERIAL PRIMARY KEY,
+    vendor_id INTEGER NOT NULL REFERENCES vendors(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    template_name VARCHAR(255) NOT NULL,
+    product_name VARCHAR(255) NOT NULL,
+    short_description VARCHAR(50) NOT NULL,
+    long_description TEXT,
+    price INTEGER NOT NULL,
+    category_id INTEGER REFERENCES product_category(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    template_image VARCHAR(500),
+    is_default BOOLEAN NOT NULL DEFAULT FALSE,
+    created_timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_timestamp TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_product_templates_vendor_id ON product_templates(vendor_id);
+*/

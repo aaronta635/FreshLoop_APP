@@ -141,6 +141,25 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Development Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Development</Text>
+          <View style={styles.menuCard}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => router.push('/(tabs)/test-notifications')}
+            >
+              <View style={styles.menuItemLeft}>
+                <View style={styles.menuIcon}>
+                  <Ionicons name="bug-outline" size={20} color={Colors.primary} />
+                </View>
+                <Text style={styles.menuItemText}>Test Notifications</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Business Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Business</Text>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -12,62 +12,24 @@ import {
   ActivityIndicator,
   Image,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Colors, Spacing, FontSize, FontWeight, BorderRadius } from '../../constants/Colors';
-import { productsApi, ProductCreate, ProductUpdate, ProductCategoryEnum, templatesApi, ProductTemplate, API_BASE_URL } from '../../services/api';
+import { templatesApi, ProductTemplateCreate, productsApi, API_BASE_URL } from '../../services/api';
 
-export default function CreateDealScreen() {
+export default function CreateTemplateScreen() {
   const router = useRouter();
-  const { templateId } = useLocalSearchParams<{ templateId?: string }>();
   const [isLoading, setIsLoading] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    title: '',
+    templateName: '',
+    productName: '',
     description: '',
+    longDescription: '',
     price: '',
-    quantity: '',
-    pickupAddress: '',
-    readyTime: '14:00', // Default pickup time
   });
-
-  // Load template if templateId is provided
-  useEffect(() => {
-    if (templateId) {
-      loadTemplate(parseInt(templateId));
-    }
-  }, [templateId]);
-
-  const loadTemplate = async (id: number) => {
-    try {
-      const templates = await templatesApi.getMyTemplates();
-      const template = templates.find(t => t.id === id);
-      if (template) {
-        setFormData({
-          title: template.product_name,
-          description: template.short_description,
-          price: (template.price / 100).toFixed(2),
-          quantity: '1', // Default quantity, vendor sets actual stock
-          pickupAddress: '',
-          readyTime: '14:00',
-        });
-        // Set image if available
-        if (template.template_image) {
-          const imageUrl = template.template_image.startsWith('http')
-            ? template.template_image
-            : `${API_BASE_URL.replace('/api', '')}${template.template_image}`;
-          setImageUri(imageUrl);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading template:', error);
-      Alert.alert('Error', 'Failed to load template');
-    }
-  };
-
-  // Get shop name from user or use default
-  const shopName = 'Your Restaurant'; // This should come from user/vendor profile
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -86,6 +48,7 @@ export default function CreateDealScreen() {
 
     if (!result.canceled && result.assets[0]) {
       setImageUri(result.assets[0].uri);
+      setUploadedImageUrl(null);
     }
   };
 
@@ -105,6 +68,7 @@ export default function CreateDealScreen() {
 
     if (!result.canceled && result.assets[0]) {
       setImageUri(result.assets[0].uri);
+      setUploadedImageUrl(null);
     }
   };
 
@@ -121,8 +85,12 @@ export default function CreateDealScreen() {
   };
 
   const validateForm = (): boolean => {
-    if (!formData.title.trim()) {
-      Alert.alert('Error', 'Please enter a deal title');
+    if (!formData.templateName.trim()) {
+      Alert.alert('Error', 'Please enter a template name');
+      return false;
+    }
+    if (!formData.productName.trim()) {
+      Alert.alert('Error', 'Please enter a product name');
       return false;
     }
     if (!formData.description.trim()) {
@@ -133,60 +101,43 @@ export default function CreateDealScreen() {
       Alert.alert('Error', 'Please enter a valid price');
       return false;
     }
-    if (!formData.quantity || isNaN(parseInt(formData.quantity))) {
-      Alert.alert('Error', 'Please enter a valid quantity');
-      return false;
-    }
-    if (!formData.pickupAddress.trim()) {
-      Alert.alert('Error', 'Please enter a pickup address');
-      return false;
-    }
     return true;
   };
 
-  const handleCreateProduct = async () => {
+  const handleCreateTemplate = async () => {
     if (!validateForm()) return;
 
     setIsLoading(true);
     try {
-      let imageUrls: string[] = [];
+      let templateImageUrl: string | undefined = uploadedImageUrl || undefined;
 
-      // Upload image if selected
-
-      if (imageUri) {
+      // Upload image if selected and not already uploaded
+      if (imageUri && !uploadedImageUrl) {
         try {
           const uploadResult = await productsApi.uploadImage(imageUri);
-          imageUrls = [uploadResult.image_url];
+          templateImageUrl = uploadResult.image_url;
+          setUploadedImageUrl(templateImageUrl);
         } catch (error) {
           console.log('Image upload failed: ', error);
+          Alert.alert('Warning', 'Image upload failed. Template will be created without image.');
         }
       }
 
-      // Calculate ready time (today at the specified time)
-      const [hours, minutes] = formData.readyTime.split(':').map(Number);
-      const readyTime = new Date();
-      readyTime.setHours(hours, minutes, 0, 0);
-      
-      // If the time has passed today, set it for tomorrow
-      if (readyTime < new Date()) {
-        readyTime.setDate(readyTime.getDate() + 1);
-      }
-      const productData: ProductCreate = {
-        product_name: formData.title.trim(),
+      const templateData: ProductTemplateCreate = {
+        template_name: formData.templateName.trim(),
+        product_name: formData.productName.trim(),
         short_description: formData.description.trim(),
-        long_description: formData.description.trim(),
-        product_images: imageUrls,
-        category: 'food' as ProductCategoryEnum,  // or let user select
-        stock: parseInt(formData.quantity),
-        price: Math.round(parseFloat(formData.price) * 100),
-        pickup_time: formData.readyTime,  // store the time string directly
+        long_description: formData.longDescription.trim() || formData.description.trim(),
+        price: Math.round(parseFloat(formData.price) * 100), // Convert to cents
+        template_image: templateImageUrl,
+        is_default: false,
       };
 
-      await productsApi.createProduct(productData);
+      await templatesApi.createTemplate(templateData);
 
       Alert.alert(
         'Success!',
-        'Your deal has been created and is now live.',
+        'Template created successfully!',
         [
           {
             text: 'OK',
@@ -195,10 +146,10 @@ export default function CreateDealScreen() {
         ]
       );
     } catch (error: any) {
-      console.error('Create deal error:', error);
+      console.error('Create template error:', error);
       Alert.alert(
         'Error',
-        error.message || 'Failed to create deal. Please try again.'
+        error.message || 'Failed to create template. Please try again.'
       );
     } finally {
       setIsLoading(false);
@@ -215,8 +166,8 @@ export default function CreateDealScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={Colors.white} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Create New Deal</Text>
-        <Text style={styles.headerSubtitle}>List your surplus food</Text>
+        <Text style={styles.headerTitle}>Create Template</Text>
+        <Text style={styles.headerSubtitle}>Save reusable product info</Text>
       </View>
 
       {/* Form */}
@@ -227,10 +178,13 @@ export default function CreateDealScreen() {
       >
         {/* Image Upload */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>DEAL PHOTO</Text>
+          <Text style={styles.label}>TEMPLATE IMAGE</Text>
           <TouchableOpacity style={styles.imageUpload} onPress={showImageOptions}>
-            {imageUri ? (
-              <Image source={{ uri: imageUri }} style={styles.uploadedImage} />
+            {imageUri || uploadedImageUrl ? (
+              <Image 
+                source={{ uri: imageUri || uploadedImageUrl || '' }} 
+                style={styles.uploadedImage} 
+              />
             ) : (
               <View style={styles.uploadPlaceholder}>
                 <Ionicons name="camera" size={48} color={Colors.textSecondary} />
@@ -241,28 +195,57 @@ export default function CreateDealScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Title */}
+        {/* Template Name */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>DEAL TITLE</Text>
+          <Text style={styles.label}>TEMPLATE NAME</Text>
           <TextInput
             style={styles.input}
-            placeholder="e.g. Fresh Pasta & Salad Combo"
+            placeholder="e.g. Weekly Pasta Special"
             placeholderTextColor={Colors.textSecondary}
-            value={formData.title}
-            onChangeText={(title) => setFormData({ ...formData, title })}
+            value={formData.templateName}
+            onChangeText={(templateName) => setFormData({ ...formData, templateName })}
             editable={!isLoading}
           />
         </View>
 
-        {/* Description */}
+        {/* Product Name */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>DESCRIPTION</Text>
+          <Text style={styles.label}>PRODUCT NAME</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. Fresh Pasta & Salad Combo"
+            placeholderTextColor={Colors.textSecondary}
+            value={formData.productName}
+            onChangeText={(productName) => setFormData({ ...formData, productName })}
+            editable={!isLoading}
+          />
+        </View>
+
+        {/* Short Description */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>SHORT DESCRIPTION</Text>
           <TextInput
             style={[styles.input, styles.textArea]}
-            placeholder="Describe what's included in this deal..."
+            placeholder="Brief description (shown in lists)..."
             placeholderTextColor={Colors.textSecondary}
             value={formData.description}
             onChangeText={(description) => setFormData({ ...formData, description })}
+            multiline
+            numberOfLines={3}
+            textAlignVertical="top"
+            editable={!isLoading}
+          />
+        </View>
+
+        {/* Long Description */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>DETAILED DESCRIPTION (Optional)</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            placeholder="Full description with details..."
+            placeholderTextColor={Colors.textSecondary}
+            value={formData.longDescription}
+            onChangeText={(longDescription) => setFormData({ ...formData, longDescription })}
             multiline
             numberOfLines={4}
             textAlignVertical="top"
@@ -270,83 +253,28 @@ export default function CreateDealScreen() {
           />
         </View>
 
-        {/* Price & Quantity */}
-        <View style={styles.row}>
-          <View style={[styles.inputGroup, { flex: 1 }]}>
-            <Text style={styles.label}>PRICE ($)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="5.99"
-              placeholderTextColor={Colors.textSecondary}
-              value={formData.price}
-              onChangeText={(price) => setFormData({ ...formData, price })}
-              keyboardType="decimal-pad"
-              editable={!isLoading}
-            />
-          </View>
-
-          <View style={[styles.inputGroup, { flex: 1 }]}>
-            <Text style={styles.label}>QUANTITY</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="5"
-              placeholderTextColor={Colors.textSecondary}
-              value={formData.quantity}
-              onChangeText={(quantity) => setFormData({ ...formData, quantity })}
-              keyboardType="number-pad"
-              editable={!isLoading}
-            />
-          </View>
-        </View>
-
-        {/* Pickup Address */}
+        {/* Price */}
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>PICKUP ADDRESS</Text>
+          <Text style={styles.label}>BASE PRICE ($)</Text>
           <TextInput
             style={styles.input}
-            placeholder="123 Crown Street, Wollongong"
+            placeholder="5.99"
             placeholderTextColor={Colors.textSecondary}
-            value={formData.pickupAddress}
-            onChangeText={(pickupAddress) => setFormData({ ...formData, pickupAddress })}
+            value={formData.price}
+            onChangeText={(price) => setFormData({ ...formData, price })}
+            keyboardType="decimal-pad"
             editable={!isLoading}
           />
         </View>
 
-        {/* Ready Time */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>PICKUP TIME</Text>
-          <View style={styles.timeSelector}>
-            {['12:00', '14:00', '16:00', '18:00', '20:00'].map((time) => (
-              <TouchableOpacity
-                key={time}
-                style={[
-                  styles.timeChip,
-                  formData.readyTime === time && styles.timeChipActive,
-                ]}
-                onPress={() => setFormData({ ...formData, readyTime: time })}
-                disabled={isLoading}
-              >
-                <Text
-                  style={[
-                    styles.timeChipText,
-                    formData.readyTime === time && styles.timeChipTextActive,
-                  ]}
-                >
-                  {time}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
         {/* Tips */}
         <View style={styles.tipCard}>
-          <Text style={styles.tipTitle}>💡 Tips for Great Deals</Text>
+          <Text style={styles.tipTitle}>💡 About Templates</Text>
           <Text style={styles.tipText}>
-            • Use clear photos of your food{'\n'}
-            • Set competitive prices (50-70% off retail){'\n'}
-            • List accurate quantities{'\n'}
-            • Update deals regularly
+            • Templates save time when creating similar products{'\n'}
+            • You can reuse name, description, price, and image{'\n'}
+            • Stock quantity will be set each time you use a template{'\n'}
+            • Edit or delete templates anytime from the Templates screen
           </Text>
         </View>
       </ScrollView>
@@ -355,14 +283,14 @@ export default function CreateDealScreen() {
       <View style={styles.footer}>
         <TouchableOpacity
           style={[styles.createButton, isLoading && styles.createButtonDisabled]}
-          onPress={handleCreateProduct}
+          onPress={handleCreateTemplate}
           disabled={isLoading}
         >
           {isLoading ? (
             <ActivityIndicator color={Colors.white} />
           ) : (
             <>
-              <Text style={styles.createButtonText}>Create Deal</Text>
+              <Text style={styles.createButtonText}>Save Template</Text>
               <Ionicons name="checkmark-circle" size={20} color={Colors.white} />
             </>
           )}
@@ -425,10 +353,6 @@ const styles = StyleSheet.create({
     minHeight: 100,
     paddingTop: 16,
   },
-  row: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-  },
   imageUpload: {
     backgroundColor: Colors.lightGray,
     borderRadius: BorderRadius.lg,
@@ -455,28 +379,6 @@ const styles = StyleSheet.create({
   uploadSubtext: {
     fontSize: FontSize.xs,
     color: Colors.textSecondary,
-  },
-  timeSelector: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-  },
-  timeChip: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: 12,
-    backgroundColor: Colors.lightGray,
-    borderRadius: BorderRadius.full,
-  },
-  timeChipActive: {
-    backgroundColor: Colors.primary,
-  },
-  timeChipText: {
-    fontSize: FontSize.sm,
-    fontWeight: FontWeight.semiBold,
-    color: Colors.primary,
-  },
-  timeChipTextActive: {
-    color: Colors.white,
   },
   tipCard: {
     backgroundColor: 'rgba(217, 224, 33, 0.2)',

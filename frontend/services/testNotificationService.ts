@@ -66,12 +66,13 @@ export async function testNotificationEndpoints(userId: string): Promise<void> {
       },
       body: JSON.stringify({
         user_id: userId,
-        title: 'Hot Deal Available!',
-        body: 'Check out this amazing deal',
-        data: {
-          type: 'hot-deal',
-          deal_id: '123',
+        // Microservice validation expects `deal` as an object with required fields.
+        deal: {
+          id: '123',
+          title: 'Hot Deal Available!',
         },
+        // Optional metadata for client-side routing (harmless if ignored server-side).
+        data: { type: 'hot-deal', deal_id: '123' },
       }),
     });
 
@@ -92,12 +93,13 @@ export async function testNotificationEndpoints(userId: string): Promise<void> {
       },
       body: JSON.stringify({
         user_id: userId,
-        title: 'Order Confirmed',
-        body: 'Your order has been confirmed',
-        data: {
-          type: 'order-confirm',
-          order_id: '456',
+        // Microservice validation expects `order` as an object with required fields.
+        order: {
+          id: '456',
+          status: 'confirmed',
         },
+        // Optional metadata for client-side routing (harmless if ignored server-side).
+        data: { type: 'order-confirm', order_id: '456' },
       }),
     });
 
