@@ -14,7 +14,7 @@ RUN pip install --upgrade pip && \
 COPY . .
 
 
-RUN poetry install --no-root
+RUN poetry install --no-root --no-dev || poetry install --no-root
 
 EXPOSE 8000
 

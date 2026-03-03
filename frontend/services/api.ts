@@ -13,11 +13,11 @@ const ENABLE_API_LOGGING = true;
 // Log API calls
 function logApiCall(method: string, url: string, options?: RequestInit) {
   if (!ENABLE_API_LOGGING) return;
-  
+
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log(`🌐 API ${method}: ${url}`);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  
+
   if (options?.headers) {
     const headers = { ...options.headers } as any;
     // Hide sensitive data
@@ -26,7 +26,7 @@ function logApiCall(method: string, url: string, options?: RequestInit) {
     }
     console.log('📤 Headers:', JSON.stringify(headers, null, 2));
   }
-  
+
   if (options?.body) {
     try {
       const body = typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
@@ -40,7 +40,7 @@ function logApiCall(method: string, url: string, options?: RequestInit) {
 // Log API responses
 function logApiResponse(url: string, response: Response, data?: any, error?: any) {
   if (!ENABLE_API_LOGGING) return;
-  
+
   if (error) {
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log(`❌ API ERROR: ${url}`);
@@ -140,7 +140,7 @@ export interface Vendor {
 }
 
 // Product category
-export type ProductCategoryEnum = 
+export type ProductCategoryEnum =
   | 'electronics' | 'fashion' | 'home' | 'toys' | 'books'
   | 'beauty' | 'sports' | 'food' | 'health' | 'automotive'
   | 'pets' | 'software' | 'jewelry' | 'baby' | 'grocery'
@@ -374,7 +374,7 @@ export interface CheckoutCreate {
 
 export class ApiError extends Error {
   status: number;
-  
+
   constructor(message: string, status: number) {
     super(message);
     this.status = status;
@@ -395,11 +395,11 @@ async function getAuthHeader(): Promise<{ Authorization: string } | {}> {
 // Handle API responses
 async function handleResponse<T>(response: Response, url?: string): Promise<T> {
   let responseData: any = null;
-  
+
   try {
     // Try to get response text first (for error logging)
     const responseText = await response.clone().text();
-    
+
     // Parse JSON if possible
     try {
       responseData = JSON.parse(responseText);
@@ -409,11 +409,11 @@ async function handleResponse<T>(response: Response, url?: string): Promise<T> {
   } catch (e) {
     console.warn('Could not read response body:', e);
   }
-  
+
   if (!response.ok) {
     const errorData = responseData || {};
     const message = errorData.detail || errorData.message || errorData.error || 'An error occurred';
-    
+
     // Log error details
     if (url) {
       logApiResponse(url, response, errorData, message);
@@ -426,32 +426,32 @@ async function handleResponse<T>(response: Response, url?: string): Promise<T> {
         data: errorData,
       });
     }
-    
+
     throw new ApiError(
       typeof message === 'string' ? message : JSON.stringify(message),
       response.status
     );
   }
-  
+
   // Log success
   if (url) {
     logApiResponse(url, response, responseData);
   }
-  
+
   // Handle 204 No Content
   if (response.status === 204) {
     return {} as T;
   }
-  
+
   return responseData;
 }
 
 // Enhanced fetch wrapper with logging
 async function apiFetch(url: string, options?: RequestInit): Promise<Response> {
   const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
-  
+
   logApiCall(options?.method || 'GET', fullUrl, options);
-  
+
   try {
     const response = await fetch(fullUrl, options);
     return response;
@@ -497,13 +497,13 @@ export const authApi = {
       },
       body: JSON.stringify(data),
     });
-    
+
     const result = await handleResponse<RegisterResponse>(response);
-    
+
     // Store tokens
     await storeTokens(result.tokens);
     await AsyncStorage.setItem(USER_KEY, JSON.stringify(result.auth_user));
-    
+
     return result;
   },
 
@@ -527,14 +527,14 @@ export const authApi = {
     });
 
     const tokens = await handleResponse<Tokens>(response, url);
-    
+
     // Store tokens
     await storeTokens(tokens);
-    
+
     // Fetch and store user data
     const user = await this.getCurrentUser();
     await AsyncStorage.setItem(USER_KEY, JSON.stringify(user));
-    
+
     return tokens;
   },
 
@@ -645,7 +645,7 @@ export const authApi = {
       },
       body: JSON.stringify({ refresh_token: refreshToken }),
     });
-    
+
     const tokens = await handleResponse<Tokens>(response);
     await storeTokens(tokens);
     return tokens;
@@ -764,10 +764,10 @@ export const productsApi = {
     if (params?.search) queryParams.append('search', params.search);
     if (params?.skip !== undefined) queryParams.append('skip', params.skip.toString());
     if (params?.limit !== undefined) queryParams.append('limit', params.limit.toString());
-    
+
     const queryString = queryParams.toString();
     const url = `/products${queryString ? `?${queryString}` : ''}`;
-    
+
     const response = await apiFetch(url, {
       method: 'GET',
       headers: {
@@ -799,10 +799,10 @@ export const productsApi = {
     if (params?.search) queryParams.append('search', params.search);
     if (params?.skip !== undefined) queryParams.append('skip', params.skip.toString());
     if (params?.limit !== undefined) queryParams.append('limit', params.limit.toString());
-    
+
     const queryString = queryParams.toString();
     const url = `${API_BASE_URL}/products/me${queryString ? `?${queryString}` : ''}`;
-    
+
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -821,10 +821,10 @@ export const productsApi = {
     const queryParams = new URLSearchParams();
     if (params?.skip !== undefined) queryParams.append('skip', params.skip.toString());
     if (params?.limit !== undefined) queryParams.append('limit', params.limit.toString());
-    
+
     const queryString = queryParams.toString();
     const url = `${API_BASE_URL}/products/price${queryString ? `?${queryString}` : ''}`;
-    
+
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -881,7 +881,7 @@ export const productsApi = {
 
     // Get file execution
     const uriParts = imageUri.split('.');
-    const fileType = uriParts[uriParts.length -1];
+    const fileType = uriParts[uriParts.length - 1];
 
     formData.append('file', {
       uri: imageUri,
@@ -989,11 +989,11 @@ export const templatesApi = {
     const authHeader = await getAuthHeader();
     const url = '/templates';
     const response = await apiFetch(url, {
-      method: 'POST', 
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...authHeader,
-      }, 
+      },
       body: JSON.stringify(template),
     });
     return handleResponse<ProductTemplate>(response, url);

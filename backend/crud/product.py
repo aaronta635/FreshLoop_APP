@@ -22,7 +22,6 @@ from schemas import (
 
 
 class CRUDProduct(CRUDBase[Product, ProductCreate, ProductUpdate]):
-
     def get_all_products_public(
         self, search: str | None, skip=0, limit=10
     ) -> Union[List[Product], None]:
